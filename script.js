@@ -89,13 +89,13 @@ onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snap
             let amountElement;
             if (i.unit === '大さじ' || i.unit === '小さじ') {
                 // 大さじ・小さじなら：[単位][量]
-                amountElement = `<span class="ing-amount">${i.unit} ${i.amount}</span>`;
+                amountElement = `<span class="unit">${i.unit}</span> <span class="amount">${i.amount}</span>`;
             } else {
                 // それ以外なら：[量][単位]
-                amountElement = `<span class="ing-amount">${i.amount}${i.unit}</span>`;
+                amountElement = `<span class="amount">${i.amount}</span><span class="unit">${i.unit}</span>`;
             }
-            // 材料名 + 量・単位
-            return `<li class="ingredient-item"><span class="ing-name">${i.name}</span>${amountElement}</li>`;
+            // 材料名 + 上記の順序でHTMLを作成
+            return `<li class="ingredient-item"><span class="ing-name">${i.name}</span><span class="ing-amount">${amountElement}</span></li>`;
         }).join('') : '';
 
         const card = document.createElement('div');
@@ -121,10 +121,3 @@ onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snap
         
         // 削除ボタン
         card.querySelector('.delete-btn').addEventListener('click', async (e) => {
-            e.stopPropagation(); // 展開イベントを停止
-            if(confirm('削除しますか？')) await deleteDoc(doc(db, "recipes", docSnap.id));
-        });
-        
-        container.appendChild(card);
-    });
-});
