@@ -121,3 +121,10 @@ onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snap
         
         // 削除ボタン
         card.querySelector('.delete-btn').addEventListener('click', async (e) => {
+            e.stopPropagation(); // 展開イベントを停止
+            if(confirm('削除しますか？')) await deleteDoc(doc(db, "recipes", docSnap.id));
+        });
+        
+        container.appendChild(card);
+    });
+});
