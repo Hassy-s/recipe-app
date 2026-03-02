@@ -84,18 +84,10 @@ onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snap
         // データが存在することを確認してから配列処理をする（エラー防止）
         const stepsListHTML = data.steps ? data.steps.map(step => `<li>${step}</li>`).join('') : '';
         
-        // 🔥 【修正】単位によって並び順を変える条件分岐を追加
-        const ingredientsHTML = data.ingredients ? data.ingredients.map(i => {
-            let order;
-            if (i.unit === '大さじ' || i.unit === '小さじ') {
-                // 大さじ・小さじなら：[単位][量] [材料名]
-                order = `<span class="ing-amount">${i.unit}${i.amount}</span><span class="ing-name">${i.name}</span>`;
-            } else {
-                // それ以外なら：[量][単位] [材料名]
-                order = `<span class="ing-amount">${i.amount}${i.unit}</span><span class="ing-name">${i.name}</span>`;
-            }
-            return `<li>${order}</li>`;
-        }).join('') : '';
+        // 🔥 【修正】材料HTMLをリスト形式(`<li>`)に変更し、CSSクラスを付与
+        const ingredientsHTML = data.ingredients ? data.ingredients.map(i => 
+            `<li><span class="ing-name">${i.name}</span><span class="ing-amount">${i.amount}${i.unit}</span></li>`
+        ).join('') : '';
 
         const card = document.createElement('div');
         card.className = 'recipe-card';
@@ -105,8 +97,7 @@ onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snap
             <small>投稿者: ${data.author}</small>
             <div class="recipe-details">
                 <p><strong>材料:</strong></p>
-                <ul class="ingredient-list-style">${ingredientsHTML}</ul>
-                <p><strong>手順:</strong> <ol>${stepsListHTML}</ol></p> 
+                <ul class="ingredient-list-style">${ingredientsHTML}</ul> <p><strong>手順:</strong> <ol>${stepsListHTML}</ol></p> 
                 <p><strong>ポイント:</strong> ${data.point}</p>
             </div>
         `;
