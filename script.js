@@ -31,7 +31,9 @@ let tempIngredients = [];
 let tempSteps = [];
 let editingId = null;
 
-// ---------- 一時リスト ----------
+/* ----------------------------
+   一時リスト表示
+---------------------------- */
 function updateTempList(listId, dataArray, type) {
     const listElement = document.getElementById(listId);
     listElement.innerHTML = '';
@@ -45,13 +47,39 @@ function updateTempList(listId, dataArray, type) {
 
         li.innerHTML = `
             <span>${text}</span>
-            <button type="button" class="remove-temp-btn" data-index="${index}">削除</button>
+            <button type="button" class="remove-temp-btn" data-index="${index}">
+                削除
+            </button>
         `;
         listElement.appendChild(li);
     });
 }
 
-// ---------- 材料追加 ----------
+/* ----------------------------
+   🔥 一時削除（完全版）
+---------------------------- */
+document.addEventListener('click', (e) => {
+
+    if (!e.target.classList.contains('remove-temp-btn')) return;
+
+    const index = Number(e.target.dataset.index);
+
+    // 材料削除
+    if (e.target.closest('#ingredient-list')) {
+        tempIngredients.splice(index, 1);
+        updateTempList('ingredient-list', tempIngredients, 'ingredients');
+    }
+
+    // 手順削除
+    if (e.target.closest('#step-list')) {
+        tempSteps.splice(index, 1);
+        updateTempList('step-list', tempSteps, 'steps');
+    }
+});
+
+/* ----------------------------
+   材料追加
+---------------------------- */
 document.getElementById('add-ingredient-btn').addEventListener('click', () => {
     const name = document.getElementById('temp-ingredient').value;
     const amount = document.getElementById('temp-amount-num').value;
@@ -66,7 +94,9 @@ document.getElementById('add-ingredient-btn').addEventListener('click', () => {
     document.getElementById('temp-amount-num').value = '';
 });
 
-// ---------- 手順追加 ----------
+/* ----------------------------
+   手順追加
+---------------------------- */
 document.getElementById('add-step-btn').addEventListener('click', () => {
     const step = document.getElementById('temp-step').value;
     if (!step) return;
@@ -76,7 +106,9 @@ document.getElementById('add-step-btn').addEventListener('click', () => {
     document.getElementById('temp-step').value = '';
 });
 
-// ---------- 投稿 / 更新 ----------
+/* ----------------------------
+   投稿 / 更新
+---------------------------- */
 recipeForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -118,7 +150,9 @@ recipeForm.addEventListener('submit', async (e) => {
     document.getElementById('step-list').innerHTML = '';
 });
 
-// ---------- 表示 ----------
+/* ----------------------------
+   レシピ表示
+---------------------------- */
 onSnapshot(
     query(collection(db, "recipes"), orderBy("createdAt", "desc")),
     (snapshot) => {
@@ -138,10 +172,8 @@ onSnapshot(
                     const name = (i.name || '').trim();
                     let unit = (i.unit || '').trim();
                     let baseAmount = parseFloat(i.amount) || 0;
-
                     let newAmount = baseAmount * servings;
 
-                    // ---- 小さじ → 大さじ変換（割り切れる時のみ）----
                     if (unit === "小さじ" && newAmount % 3 === 0) {
                         unit = "大さじ";
                         newAmount = newAmount / 3;
@@ -152,35 +184,30 @@ onSnapshot(
                         .replace(/\.00$/, '')
                         .replace(/(\.\d)0$/, '$1');
 
-                    let amountText;
-
-                    if (['大さじ', '小さじ'].includes(unit)) {
-                        amountText = `${unit}：${formatted}`;
-                    } else {
-                        amountText = `${formatted}${unit}`;
-                    }
+                    let amountText =
+                        ['大さじ', '小さじ'].includes(unit)
+                            ? `${unit}：${formatted}`
+                            : `${formatted}${unit}`;
 
                     return `
                         <li class="ingredient-item">
-                            <span class="ing-name">${name}</span>
-                            <span class="ing-amount">${amountText}</span>
+                            <span>${name}</span>
+                            <span>${amountText}</span>
                         </li>
                     `;
                 }).join('');
             }
 
-            const stepsListHTML = data.steps
-                ? data.steps.map(step => `<li>${step}</li>`).join('')
-                : '';
+            const stepsHTML = data.steps.map(step => `<li>${step}</li>`).join('');
 
             card.innerHTML = `
                 <button class="edit-btn">編集</button>
                 <button class="delete-btn" data-id="${docSnap.id}">削除</button>
-                <h3 class="card-title">${data.title}</h3>
+                <h3>${data.title}</h3>
                 <small>投稿者: ${data.author}</small>
 
                 <div class="recipe-details">
-                    <div style="margin-bottom:10px;">
+                    <div>
                         <strong>何人前：</strong>
                         <button class="minus-btn">−</button>
                         <span class="serving-count">1</span>
@@ -188,77 +215,14 @@ onSnapshot(
                     </div>
 
                     <p><strong>材料:</strong></p>
-                    <ul class="ingredient-list-style">
-                        ${renderIngredients(1)}
-                    </ul>
+                    <ul>${renderIngredients(1)}</ul>
 
                     <p><strong>手順:</strong></p>
-                    <ol>${stepsListHTML}</ol>
+                    <ol>${stepsHTML}</ol>
 
                     <p><strong>ポイント:</strong> ${data.point}</p>
                 </div>
             `;
-
-            // ---------- 編集 ----------
-            card.querySelector('.edit-btn').addEventListener('click', (e) => {
-                e.stopPropagation();
-
-                editingId = docSnap.id;
-
-                document.getElementById('title').value = data.title;
-                document.getElementById('author').value = data.author;
-                document.getElementById('point').value = data.point;
-
-                tempIngredients = [...data.ingredients];
-                tempSteps = [...data.steps];
-
-                updateTempList('ingredient-list', tempIngredients, 'ingredients');
-                updateTempList('step-list', tempSteps, 'steps');
-
-                submitBtn.textContent = "更新する";
-
-                window.scrollTo({ top: 0, behavior: "smooth" });
-            });
-
-            // ---------- 人前 ----------
-            const countSpan = card.querySelector('.serving-count');
-
-            card.querySelector('.plus-btn').addEventListener('click', (e) => {
-                e.stopPropagation();
-                currentServings++;
-                countSpan.textContent = currentServings;
-                card.querySelector('.ingredient-list-style').innerHTML =
-                    renderIngredients(currentServings);
-            });
-
-            card.querySelector('.minus-btn').addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (currentServings > 1) {
-                    currentServings--;
-                    countSpan.textContent = currentServings;
-                    card.querySelector('.ingredient-list-style').innerHTML =
-                        renderIngredients(currentServings);
-                }
-            });
-
-            // ---------- 削除 ----------
-            card.querySelector('.delete-btn').addEventListener('click', async (e) => {
-                e.stopPropagation();
-                if (confirm('削除しますか？')) {
-                    await deleteDoc(doc(db, "recipes", docSnap.id));
-                }
-            });
-
-            card.addEventListener('click', (e) => {
-                if (
-                    e.target.classList.contains('delete-btn') ||
-                    e.target.classList.contains('edit-btn') ||
-                    e.target.classList.contains('plus-btn') ||
-                    e.target.classList.contains('minus-btn')
-                ) return;
-
-                card.classList.toggle('open');
-            });
 
             container.appendChild(card);
         });
