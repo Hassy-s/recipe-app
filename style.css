@@ -31,10 +31,32 @@ button { border: none; padding: 12px; border-radius: 10px; cursor: pointer; font
         font-size: 16px; /* 文字サイズを16px以上にするとズームしにくくなります */
     }
 }
-/* --- 追加箇所: style.css の一番下 --- */
+/* 🔥 タイトル部分を中央寄せ */
 h2 {
-    text-align: center; /* テキストを中央寄せ */
-    width: 100%;       /* 幅を画面いっぱいに */
-    margin: 20px 0;    /* 上下の余白調整 */
+    text-align: center;
+    width: 100%;
+    margin: 20px 0;
 }
 
+/* 🔥 【追加】材料リストの改行と位置揃え */
+.ingredient-list-style {
+    list-style: none; /* ドットを消す */
+    padding: 0;
+    margin: 10px 0;
+}
+
+.ingredient-list-style li {
+    display: flex; /* 材料と量を横並びにする */
+    justify-content: space-between; /* 左右に寄せる */
+    padding: 3px 0;
+    border-bottom: 1px dotted #eee; /* 薄い下線 */
+}
+
+.ing-name {
+    text-align: left;
+}
+
+.ing-amount {
+    text-align: right;
+    font-weight: bold;
+}
