@@ -13,50 +13,36 @@ button { border: none; padding: 12px; border-radius: 10px; cursor: pointer; font
 
 /* カードエリア */
 #container { display: grid; gap: 20px; max-width: 1200px; margin: 0 auto; }
-@media (min-width: 601px) { #container { grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); } }
+@media (min-width: 601px) { #container { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); } }
 
-.recipe-card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 5px solid #ff9f43; cursor: pointer; box-sizing: border-box; height: fit-content; }
+.recipe-card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 5px solid #ff9f43; position: relative; cursor: pointer; }
 .card-title { margin: 0 0 10px 0; color: #333; }
 .recipe-details { display: none; margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; }
 .recipe-card.open .recipe-details { display: block; }
-.delete-btn { background-color: #ff6b6b; color: white; font-size: 0.7rem; padding: 5px; float: right; }
+.delete-btn { background-color: #ff6b6b; color: white; position: absolute; top: 10px; right: 10px; font-size: 0.7rem; padding: 5px; }
 
-/* 🔥 展開されたカードが隣のカードを押し出さないようにする */
-.recipe-card.open {
-    grid-row: span 2;
-}
-/* 🔥 スマホ入力時のズームを防ぐ */
-@media screen and (max-width: 600px) {
-    input, select, textarea {
-        font-size: 16px; /* 文字サイズを16px以上にするとズームしにくくなります */
-    }
-}
-/* 🔥 タイトル部分を中央寄せ */
-h2 {
-    text-align: center;
-    width: 100%;
-    margin: 20px 0;
-}
-
-/* 🔥 【追加】材料リストの改行と位置揃え */
+/* --- 材料リストのスタイルを追加 --- */
 .ingredient-list-style {
     list-style: none; /* ドットを消す */
     padding: 0;
     margin: 10px 0;
 }
 
-.ingredient-list-style li {
-    display: flex; /* 材料と量を横並びにする */
-    justify-content: space-between; /* 左右に寄せる */
-    padding: 3px 0;
-    border-bottom: 1px dotted #eee; /* 薄い下線 */
+.ingredient-item {
+    display: flex;
+    justify-content: space-between; /* 名前と量を左右に分ける */
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px dotted #eee;
 }
 
 .ing-name {
+    font-weight: bold;
     text-align: left;
 }
 
 .ing-amount {
     text-align: right;
+    color: #555;
     font-weight: bold;
 }
