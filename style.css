@@ -68,3 +68,29 @@ button { border: none; padding: 12px; border-radius: 10px; cursor: pointer; font
     font-size: 0.85rem;
     padding: 4px 8px;
 }
+/* 以前の絶対配置を無効化 */
+.edit-btn,
+.delete-btn {
+    position: static;
+}
+
+/* 横並びレイアウト */
+.serving-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-actions {
+    display: none;
+    gap: 8px;
+}
+
+.recipe-card.open .card-actions {
+    display: flex;
+}
+
+.card-actions button {
+    font-size: 0.85rem;
+    padding: 4px 8px;
+}
