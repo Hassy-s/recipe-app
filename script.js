@@ -3,6 +3,7 @@ import {
     getFirestore,
     collection,
     addDoc,
+    updateDoc,
     query,
     orderBy,
     onSnapshot,
@@ -24,9 +25,11 @@ const db = getFirestore(app);
 
 const recipeForm = document.getElementById('recipe-form');
 const container = document.getElementById('container');
+const submitBtn = document.querySelector('.submit-btn');
 
 let tempIngredients = [];
 let tempSteps = [];
+let editingId = null;
 
 // ---------- 一時リスト ----------
 function updateTempList(listId, dataArray, type) {
@@ -73,7 +76,7 @@ document.getElementById('add-step-btn').addEventListener('click', () => {
     document.getElementById('temp-step').value = '';
 });
 
-// ---------- 投稿 ----------
+// ---------- 投稿 / 更新 ----------
 recipeForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -86,14 +89,27 @@ recipeForm.addEventListener('submit', async (e) => {
         return;
     }
 
-    await addDoc(collection(db, "recipes"), {
-        title,
-        author,
-        ingredients: tempIngredients,
-        steps: tempSteps,
-        point,
-        createdAt: new Date()
-    });
+    if (editingId) {
+        await updateDoc(doc(db, "recipes", editingId), {
+            title,
+            author,
+            ingredients: tempIngredients,
+            steps: tempSteps,
+            point
+        });
+
+        editingId = null;
+        submitBtn.textContent = "投稿する";
+    } else {
+        await addDoc(collection(db, "recipes"), {
+            title,
+            author,
+            ingredients: tempIngredients,
+            steps: tempSteps,
+            point,
+            createdAt: new Date()
+        });
+    }
 
     recipeForm.reset();
     tempIngredients = [];
@@ -120,10 +136,18 @@ onSnapshot(
                 return data.ingredients.map(i => {
 
                     const name = (i.name || '').trim();
-                    const unit = (i.unit || '').trim();
-                    const baseAmount = parseFloat(i.amount) || 0;
+                    let unit = (i.unit || '').trim();
+                    let baseAmount = parseFloat(i.amount) || 0;
 
-                    const newAmount = (baseAmount * servings)
+                    let newAmount = baseAmount * servings;
+
+                    // ---- 小さじ → 大さじ変換（割り切れる時のみ）----
+                    if (unit === "小さじ" && newAmount % 3 === 0) {
+                        unit = "大さじ";
+                        newAmount = newAmount / 3;
+                    }
+
+                    const formatted = newAmount
                         .toFixed(2)
                         .replace(/\.00$/, '')
                         .replace(/(\.\d)0$/, '$1');
@@ -131,9 +155,9 @@ onSnapshot(
                     let amountText;
 
                     if (['大さじ', '小さじ'].includes(unit)) {
-                        amountText = `${unit}：${newAmount}`;
+                        amountText = `${unit}：${formatted}`;
                     } else {
-                        amountText = `${newAmount}${unit}`;
+                        amountText = `${formatted}${unit}`;
                     }
 
                     return `
@@ -150,6 +174,7 @@ onSnapshot(
                 : '';
 
             card.innerHTML = `
+                <button class="edit-btn">編集</button>
                 <button class="delete-btn" data-id="${docSnap.id}">削除</button>
                 <h3 class="card-title">${data.title}</h3>
                 <small>投稿者: ${data.author}</small>
@@ -174,16 +199,28 @@ onSnapshot(
                 </div>
             `;
 
-            card.addEventListener('click', (e) => {
-                if (
-                    e.target.classList.contains('delete-btn') ||
-                    e.target.classList.contains('plus-btn') ||
-                    e.target.classList.contains('minus-btn')
-                ) return;
+            // ---------- 編集 ----------
+            card.querySelector('.edit-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
 
-                card.classList.toggle('open');
+                editingId = docSnap.id;
+
+                document.getElementById('title').value = data.title;
+                document.getElementById('author').value = data.author;
+                document.getElementById('point').value = data.point;
+
+                tempIngredients = [...data.ingredients];
+                tempSteps = [...data.steps];
+
+                updateTempList('ingredient-list', tempIngredients, 'ingredients');
+                updateTempList('step-list', tempSteps, 'steps');
+
+                submitBtn.textContent = "更新する";
+
+                window.scrollTo({ top: 0, behavior: "smooth" });
             });
 
+            // ---------- 人前 ----------
             const countSpan = card.querySelector('.serving-count');
 
             card.querySelector('.plus-btn').addEventListener('click', (e) => {
@@ -204,11 +241,23 @@ onSnapshot(
                 }
             });
 
+            // ---------- 削除 ----------
             card.querySelector('.delete-btn').addEventListener('click', async (e) => {
                 e.stopPropagation();
                 if (confirm('削除しますか？')) {
                     await deleteDoc(doc(db, "recipes", docSnap.id));
                 }
+            });
+
+            card.addEventListener('click', (e) => {
+                if (
+                    e.target.classList.contains('delete-btn') ||
+                    e.target.classList.contains('edit-btn') ||
+                    e.target.classList.contains('plus-btn') ||
+                    e.target.classList.contains('minus-btn')
+                ) return;
+
+                card.classList.toggle('open');
             });
 
             container.appendChild(card);
