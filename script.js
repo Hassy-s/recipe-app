@@ -32,6 +32,29 @@ let tempSteps = [];
 let editingId = null;
 
 /* =============================
+   分数変換関数
+============================= */
+function toFraction(num) {
+    const whole = Math.floor(num);
+    const decimal = Number((num - whole).toFixed(2));
+
+    const fractionMap = {
+        0.25: "¼",
+        0.5: "½",
+        0.75: "¾"
+    };
+
+    if (decimal === 0) return whole.toString();
+    if (fractionMap[decimal]) {
+        return whole > 0
+            ? `${whole}${fractionMap[decimal]}`
+            : fractionMap[decimal];
+    }
+
+    return num.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+}
+
+/* =============================
    一時リスト表示
 ============================= */
 function updateTempList(listId, dataArray, type) {
@@ -55,7 +78,7 @@ function updateTempList(listId, dataArray, type) {
 }
 
 /* =============================
-   一時削除（イベント委任）
+   一時削除
 ============================= */
 document.addEventListener('click', (e) => {
     if (!e.target.classList.contains('remove-temp-btn')) return;
@@ -169,20 +192,26 @@ onSnapshot(
                     let baseAmount = parseFloat(i.amount) || 0;
                     let newAmount = baseAmount * servings;
 
-                    if (unit === "小さじ" && newAmount % 3 === 0) {
-                        unit = "大さじ";
-                        newAmount = newAmount / 3;
+                    let amountText = "";
+
+                    if (unit === "小さじ") {
+
+                        const tablespoon = Math.floor(newAmount / 3);
+                        const teaspoon = Number((newAmount % 3).toFixed(2));
+
+                        const tbspText = tablespoon > 0 ? `大さじ${toFraction(tablespoon)}` : "";
+                        const tspText = teaspoon > 0 ? `小さじ${toFraction(teaspoon)}` : "";
+
+                        amountText = [tbspText, tspText].filter(Boolean).join(" ");
+
+                    } else if (unit === "大さじ") {
+
+                        amountText = `大さじ${toFraction(newAmount)}`;
+
+                    } else {
+
+                        amountText = `${toFraction(newAmount)}${unit}`;
                     }
-
-                    const formatted = newAmount
-                        .toFixed(2)
-                        .replace(/\.00$/, '')
-                        .replace(/(\.\d)0$/, '$1');
-
-                    const amountText =
-                        ['大さじ', '小さじ'].includes(unit)
-                            ? `${unit}：${formatted}`
-                            : `${formatted}${unit}`;
 
                     return `<li>${name} ${amountText}</li>`;
                 }).join('');
@@ -218,16 +247,13 @@ onSnapshot(
                     </ul>
 
                     <p><strong>手順:</strong></p>
-                    <ol>
-                        ${stepsHTML}
-                    </ol>
+                    <ol>${stepsHTML}</ol>
 
                     <p><strong>ポイント:</strong> ${data.point || ''}</p>
 
                 </div>
             `;
 
-            /* カード開閉 */
             card.addEventListener('click', (e) => {
                 if (
                     e.target.classList.contains('delete-btn') ||
@@ -235,11 +261,9 @@ onSnapshot(
                     e.target.classList.contains('plus-btn') ||
                     e.target.classList.contains('minus-btn')
                 ) return;
-
                 card.classList.toggle('open');
             });
 
-            /* 人前変更 */
             const countSpan = card.querySelector('.serving-count');
 
             card.querySelector('.plus-btn').addEventListener('click', (e) => {
@@ -260,10 +284,8 @@ onSnapshot(
                 }
             });
 
-            /* 編集 */
             card.querySelector('.edit-btn').addEventListener('click', (e) => {
                 e.stopPropagation();
-
                 editingId = docSnap.id;
 
                 document.getElementById('title').value = data.title;
@@ -280,7 +302,6 @@ onSnapshot(
                 window.scrollTo({ top: 0, behavior: "smooth" });
             });
 
-            /* 削除 */
             card.querySelector('.delete-btn').addEventListener('click', async (e) => {
                 e.stopPropagation();
                 if (confirm("削除しますか？")) {
