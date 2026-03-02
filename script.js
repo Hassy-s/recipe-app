@@ -2,13 +2,14 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, deleteDoc, doc } 
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+// Firebase設定
 const firebaseConfig = {
-  apiKey: "AIzaSyDpdyrbLK1eykTU9Rsc7Vwnxl9wWiAQHyA",
-  authDomain: "my-recipe-app-dc90a.firebaseapp.com",
-  projectId: "my-recipe-app-dc90a",
-  storageBucket: "my-recipe-app-dc90a.firebasestorage.app",
-  messagingSenderId: "255488999104",
-  appId: "1:255488999104:web:bb46d14f7c8435b002b725"
+    apiKey: "AIzaSyDpdyrbLK1eykTU9Rsc7Vwnxl9wWiAQHyA",
+    authDomain: "my-recipe-app-dc90a.firebaseapp.com",
+    projectId: "my-recipe-app-dc90a",
+    storageBucket: "my-recipe-app-dc90a.firebasestorage.app",
+    messagingSenderId: "255488999104",
+    appId: "1:255488999104:web:bb46d14f7c8435b002b725"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -82,7 +83,11 @@ onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snap
         
         // データが存在することを確認してから配列処理をする（エラー防止）
         const stepsListHTML = data.steps ? data.steps.map(step => `<li>${step}</li>`).join('') : '';
-        const ingredientsHTML = data.ingredients ? data.ingredients.map(i => `${i.name} ${i.amount}${i.unit}`).join(', ') : '';
+        
+        // 🔥 【修正】材料HTMLをリスト形式(`<li>`)に変更し、CSSクラスを付与
+        const ingredientsHTML = data.ingredients ? data.ingredients.map(i => 
+            `<li><span class="ing-name">${i.name}</span><span class="ing-amount">${i.amount}${i.unit}</span></li>`
+        ).join('') : '';
 
         const card = document.createElement('div');
         card.className = 'recipe-card';
@@ -91,13 +96,13 @@ onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snap
             <h3 class="card-title">${data.title}</h3>
             <small>投稿者: ${data.author}</small>
             <div class="recipe-details">
-                <p><strong>材料:</strong> ${ingredientsHTML}</p>
-                <p><strong>手順:</strong> <ol>${stepsListHTML}</ol></p> 
+                <p><strong>材料:</strong></p>
+                <ul class="ingredient-list-style">${ingredientsHTML}</ul> <p><strong>手順:</strong> <ol>${stepsListHTML}</ol></p> 
                 <p><strong>ポイント:</strong> ${data.point}</p>
             </div>
         `;
         
-        // 🔥 クリックで展開（展開イベントの競合を防止）
+        // クリックで展開（展開イベントの競合を防止）
         card.addEventListener('click', (e) => {
             // もし「削除ボタン」をクリックした場合は展開処理をしない
             if (e.target.classList.contains('delete-btn')) return;
