@@ -80,9 +80,8 @@ onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snap
     snapshot.forEach((docSnap) => {
         const data = docSnap.data();
         
-        // 🔥 手順(steps)配列をHTMLリストに変換する処理
+        // データが存在することを確認してから配列処理をする（エラー防止）
         const stepsListHTML = data.steps ? data.steps.map(step => `<li>${step}</li>`).join('') : '';
-        // 🔥 材料(ingredients)を文字列に変換する処理
         const ingredientsHTML = data.ingredients ? data.ingredients.map(i => `${i.name} ${i.amount}${i.unit}`).join(', ') : '';
 
         const card = document.createElement('div');
@@ -98,8 +97,12 @@ onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snap
             </div>
         `;
         
-        // クリックで展開
-        card.addEventListener('click', () => card.classList.toggle('open'));
+        // 🔥 クリックで展開（展開イベントの競合を防止）
+        card.addEventListener('click', (e) => {
+            // もし「削除ボタン」をクリックした場合は展開処理をしない
+            if (e.target.classList.contains('delete-btn')) return;
+            card.classList.toggle('open');
+        });
         
         // 削除ボタン
         card.querySelector('.delete-btn').addEventListener('click', async (e) => {
