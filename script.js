@@ -10,7 +10,6 @@ import {
     doc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// Firebase設定
 const firebaseConfig = {
     apiKey: "AIzaSyDpdyrbLK1eykTU9Rsc7Vwnxl9wWiAQHyA",
     authDomain: "my-recipe-app-dc90a.firebaseapp.com",
@@ -29,7 +28,7 @@ const container = document.getElementById('container');
 let tempIngredients = [];
 let tempSteps = [];
 
-// --- 一時リストの更新 ---
+// ---------- 一時リスト ----------
 function updateTempList(listId, dataArray, type) {
     const listElement = document.getElementById(listId);
     listElement.innerHTML = '';
@@ -43,15 +42,13 @@ function updateTempList(listId, dataArray, type) {
 
         li.innerHTML = `
             <span>${text}</span>
-            <button type="button" class="remove-temp-btn" data-index="${index}">
-                削除
-            </button>
+            <button type="button" class="remove-temp-btn" data-index="${index}">削除</button>
         `;
         listElement.appendChild(li);
     });
 }
 
-// --- 材料追加 ---
+// ---------- 材料追加 ----------
 document.getElementById('add-ingredient-btn').addEventListener('click', () => {
     const name = document.getElementById('temp-ingredient').value;
     const amount = document.getElementById('temp-amount-num').value;
@@ -66,18 +63,17 @@ document.getElementById('add-ingredient-btn').addEventListener('click', () => {
     document.getElementById('temp-amount-num').value = '';
 });
 
-// --- 手順追加 ---
+// ---------- 手順追加 ----------
 document.getElementById('add-step-btn').addEventListener('click', () => {
     const step = document.getElementById('temp-step').value;
     if (!step) return;
 
     tempSteps.push(step);
     updateTempList('step-list', tempSteps, 'steps');
-
     document.getElementById('temp-step').value = '';
 });
 
-// --- 投稿処理 ---
+// ---------- 投稿 ----------
 recipeForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -106,7 +102,7 @@ recipeForm.addEventListener('submit', async (e) => {
     document.getElementById('step-list').innerHTML = '';
 });
 
-// --- リアルタイム表示 ---
+// ---------- 表示 ----------
 onSnapshot(
     query(collection(db, "recipes"), orderBy("createdAt", "desc")),
     (snapshot) => {
@@ -115,27 +111,29 @@ onSnapshot(
 
         snapshot.forEach((docSnap) => {
             const data = docSnap.data();
+            let currentServings = 1;
 
-            // --- 手順HTML ---
-            const stepsListHTML = data.steps
-                ? data.steps.map(step => `<li>${step}</li>`).join('')
-                : '';
+            const card = document.createElement('div');
+            card.className = 'recipe-card';
 
-            // --- 材料HTML（最終完成版） ---
-            const ingredientsHTML = data.ingredients
-                ? data.ingredients.map(i => {
+            function renderIngredients(servings) {
+                return data.ingredients.map(i => {
 
                     const name = (i.name || '').trim();
                     const unit = (i.unit || '').trim();
-                    const amount = (i.amount || '').trim();
+                    const baseAmount = parseFloat(i.amount) || 0;
+
+                    const newAmount = (baseAmount * servings)
+                        .toFixed(2)
+                        .replace(/\.00$/, '')
+                        .replace(/(\.\d)0$/, '$1');
 
                     let amountText;
 
-                    // ✅ 大さじ・小さじだけ「単位：量」
                     if (['大さじ', '小さじ'].includes(unit)) {
-                        amountText = `${unit}：${amount}`;
+                        amountText = `${unit}：${newAmount}`;
                     } else {
-                        amountText = `${amount}${unit}`;
+                        amountText = `${newAmount}${unit}`;
                     }
 
                     return `
@@ -144,12 +142,12 @@ onSnapshot(
                             <span class="ing-amount">${amountText}</span>
                         </li>
                     `;
-                }).join('')
-                : '';
+                }).join('');
+            }
 
-            // --- カード生成 ---
-            const card = document.createElement('div');
-            card.className = 'recipe-card';
+            const stepsListHTML = data.steps
+                ? data.steps.map(step => `<li>${step}</li>`).join('')
+                : '';
 
             card.innerHTML = `
                 <button class="delete-btn" data-id="${docSnap.id}">削除</button>
@@ -157,9 +155,16 @@ onSnapshot(
                 <small>投稿者: ${data.author}</small>
 
                 <div class="recipe-details">
+                    <div style="margin-bottom:10px;">
+                        <strong>何人前：</strong>
+                        <button class="minus-btn">−</button>
+                        <span class="serving-count">1</span>
+                        <button class="plus-btn">＋</button>
+                    </div>
+
                     <p><strong>材料:</strong></p>
                     <ul class="ingredient-list-style">
-                        ${ingredientsHTML}
+                        ${renderIngredients(1)}
                     </ul>
 
                     <p><strong>手順:</strong></p>
@@ -169,13 +174,36 @@ onSnapshot(
                 </div>
             `;
 
-            // 展開
             card.addEventListener('click', (e) => {
-                if (e.target.classList.contains('delete-btn')) return;
+                if (
+                    e.target.classList.contains('delete-btn') ||
+                    e.target.classList.contains('plus-btn') ||
+                    e.target.classList.contains('minus-btn')
+                ) return;
+
                 card.classList.toggle('open');
             });
 
-            // 削除
+            const countSpan = card.querySelector('.serving-count');
+
+            card.querySelector('.plus-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                currentServings++;
+                countSpan.textContent = currentServings;
+                card.querySelector('.ingredient-list-style').innerHTML =
+                    renderIngredients(currentServings);
+            });
+
+            card.querySelector('.minus-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (currentServings > 1) {
+                    currentServings--;
+                    countSpan.textContent = currentServings;
+                    card.querySelector('.ingredient-list-style').innerHTML =
+                        renderIngredients(currentServings);
+                }
+            });
+
             card.querySelector('.delete-btn').addEventListener('click', async (e) => {
                 e.stopPropagation();
                 if (confirm('削除しますか？')) {
