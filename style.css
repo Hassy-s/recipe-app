@@ -31,3 +31,9 @@ button { border: none; padding: 12px; border-radius: 10px; cursor: pointer; font
         font-size: 16px; /* 文字サイズを16px以上にするとズームしにくくなります */
     }
 }
+/* --- 追加箇所: style.css の一番下 --- */
+h2 {
+    text-align: center; /* テキストを中央寄せ */
+    width: 100%;       /* 幅を画面いっぱいに */
+    margin: 20px 0;    /* 上下の余白調整 */
+}
