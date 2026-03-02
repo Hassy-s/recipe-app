@@ -1,120 +1,23 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, deleteDoc, doc } 
-from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+// --- script.js の リアルタイム表示 部分を修正 ---
+// (onSnapshotの中)
+        snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            
+            const stepsListHTML = data.steps ? data.steps.map(step => `<li>${step}</li>`).join('') : '';
+            
+            // 🔥 【修正】単位によって並び順を変える条件分岐を追加（リスト形式に反映）
+            const ingredientsHTML = data.ingredients ? data.ingredients.map(i => {
+                let amountElement;
+                if (i.unit === '大さじ' || i.unit === '小さじ') {
+                    // 大さじ・小さじなら：[単位][量]
+                    amountElement = `<span class="ing-amount">${i.unit} ${i.amount}</span>`;
+                } else {
+                    // それ以外なら：[量][単位]
+                    amountElement = `<span class="ing-amount">${i.amount}${i.unit}</span>`;
+                }
+                // 材料名 + 量・単位
+                return `<li class="ingredient-item"><span class="ing-name">${i.name}</span>${amountElement}</li>`;
+            }).join('') : '';
 
-// Firebase設定
-const firebaseConfig = {
-    apiKey: "AIzaSyDpdyrbLK1eykTU9Rsc7Vwnxl9wWiAQHyA",
-    authDomain: "my-recipe-app-dc90a.firebaseapp.com",
-    projectId: "my-recipe-app-dc90a",
-    storageBucket: "my-recipe-app-dc90a.firebasestorage.app",
-    messagingSenderId: "255488999104",
-    appId: "1:255488999104:web:bb46d14f7c8435b002b725"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-const recipeForm = document.getElementById('recipe-form');
-const container = document.getElementById('container');
-
-let tempIngredients = [];
-let tempSteps = [];
-
-// --- 一時リストの更新 ---
-function updateTempList(listId, dataArray, type) {
-    const listElement = document.getElementById(listId);
-    listElement.innerHTML = '';
-    dataArray.forEach((item, index) => {
-        const li = document.createElement('li');
-        let text = type === 'ingredients' ? `${item.name} ${item.amount}${item.unit}` : item;
-        li.innerHTML = `<span>${text}</span> <button type="button" class="remove-temp-btn" data-index="${index}">削除</button>`;
-        listElement.appendChild(li);
-    });
-}
-
-// --- 材料・手順追加 ---
-document.getElementById('add-ingredient-btn').addEventListener('click', () => {
-    const name = document.getElementById('temp-ingredient').value;
-    const amount = document.getElementById('temp-amount-num').value;
-    const unit = document.getElementById('temp-unit').value;
-    if (!name) return;
-    tempIngredients.push({ name, amount, unit });
-    updateTempList('ingredient-list', tempIngredients, 'ingredients');
-    document.getElementById('temp-ingredient').value = '';
-    document.getElementById('temp-amount-num').value = '';
-});
-
-document.getElementById('add-step-btn').addEventListener('click', () => {
-    const step = document.getElementById('temp-step').value;
-    if (!step) return;
-    tempSteps.push(step);
-    updateTempList('step-list', tempSteps, 'steps');
-    document.getElementById('temp-step').value = '';
-});
-
-// --- 投稿処理 ---
-recipeForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const title = document.getElementById('title').value;
-    const author = document.getElementById('author').value;
-    const point = document.getElementById('point').value;
-    
-    if (tempIngredients.length === 0 || tempSteps.length === 0) {
-        alert("材料と手順を追加してください");
-        return;
-    }
-    
-    await addDoc(collection(db, "recipes"), {
-        title, author, ingredients: tempIngredients, steps: tempSteps, point, createdAt: new Date()
-    });
-    
-    recipeForm.reset();
-    tempIngredients = []; tempSteps = [];
-    document.getElementById('ingredient-list').innerHTML = '';
-    document.getElementById('step-list').innerHTML = '';
-});
-
-// --- リアルタイム表示とクリックイベント ---
-onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snapshot) => {
-    container.innerHTML = "";
-    snapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        
-        // データが存在することを確認してから配列処理をする（エラー防止）
-        const stepsListHTML = data.steps ? data.steps.map(step => `<li>${step}</li>`).join('') : '';
-        
-        // 🔥 【修正】材料HTMLをリスト形式(`<li>`)に変更し、CSSクラスを付与
-        const ingredientsHTML = data.ingredients ? data.ingredients.map(i => 
-            `<li><span class="ing-name">${i.name}</span><span class="ing-amount">${i.amount}${i.unit}</span></li>`
-        ).join('') : '';
-
-        const card = document.createElement('div');
-        card.className = 'recipe-card';
-        card.innerHTML = `
-            <button class="delete-btn" data-id="${docSnap.id}">削除</button>
-            <h3 class="card-title">${data.title}</h3>
-            <small>投稿者: ${data.author}</small>
-            <div class="recipe-details">
-                <p><strong>材料:</strong></p>
-                <ul class="ingredient-list-style">${ingredientsHTML}</ul> <p><strong>手順:</strong> <ol>${stepsListHTML}</ol></p> 
-                <p><strong>ポイント:</strong> ${data.point}</p>
-            </div>
-        `;
-        
-        // クリックで展開（展開イベントの競合を防止）
-        card.addEventListener('click', (e) => {
-            // もし「削除ボタン」をクリックした場合は展開処理をしない
-            if (e.target.classList.contains('delete-btn')) return;
-            card.classList.toggle('open');
-        });
-        
-        // 削除ボタン
-        card.querySelector('.delete-btn').addEventListener('click', async (e) => {
-            e.stopPropagation(); // 展開イベントを停止
-            if(confirm('削除しますか？')) await deleteDoc(doc(db, "recipes", docSnap.id));
-        });
-        
-        container.appendChild(card);
-    });
-});
+            const card = document.createElement('div');
+// (以下略)
