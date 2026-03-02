@@ -81,12 +81,12 @@ onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snap
     snapshot.forEach((docSnap) => {
         const data = docSnap.data();
         
-        // データが存在することを確認してから配列処理をする（エラー防止）
         const stepsListHTML = data.steps ? data.steps.map(step => `<li>${step}</li>`).join('') : '';
         
-        // 🔥 【修正】単位によって並び順を変える条件分岐を追加（リスト形式に反映）
+        // 🔥 【修正】JS側でHTML構造自体を変える
         const ingredientsHTML = data.ingredients ? data.ingredients.map(i => {
             let amountElement;
+            // 💡 ここのIF文で条件分岐をしています
             if (i.unit === '大さじ' || i.unit === '小さじ') {
                 // 大さじ・小さじなら：[単位][量]
                 amountElement = `<span class="unit">${i.unit}</span> <span class="amount">${i.amount}</span>`;
@@ -94,7 +94,7 @@ onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snap
                 // それ以外なら：[量][単位]
                 amountElement = `<span class="amount">${i.amount}</span><span class="unit">${i.unit}</span>`;
             }
-            // 材料名 + 上記の順序でHTMLを作成
+            // クラス名を明確にしてスタイルを適用
             return `<li class="ingredient-item"><span class="ing-name">${i.name}</span><span class="ing-amount">${amountElement}</span></li>`;
         }).join('') : '';
 
@@ -112,16 +112,15 @@ onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snap
             </div>
         `;
         
-        // クリックで展開（展開イベントの競合を防止）
+        // クリックで展開（イベントの競合を防止）
         card.addEventListener('click', (e) => {
-            // もし「削除ボタン」をクリックした場合は展開処理をしない
             if (e.target.classList.contains('delete-btn')) return;
             card.classList.toggle('open');
         });
         
         // 削除ボタン
         card.querySelector('.delete-btn').addEventListener('click', async (e) => {
-            e.stopPropagation(); // 展開イベントを停止
+            e.stopPropagation();
             if(confirm('削除しますか？')) await deleteDoc(doc(db, "recipes", docSnap.id));
         });
         
