@@ -79,6 +79,12 @@ onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snap
     container.innerHTML = "";
     snapshot.forEach((docSnap) => {
         const data = docSnap.data();
+        
+        // 🔥 手順(steps)配列をHTMLリストに変換する処理
+        const stepsListHTML = data.steps ? data.steps.map(step => `<li>${step}</li>`).join('') : '';
+        // 🔥 材料(ingredients)を文字列に変換する処理
+        const ingredientsHTML = data.ingredients ? data.ingredients.map(i => `${i.name} ${i.amount}${i.unit}`).join(', ') : '';
+
         const card = document.createElement('div');
         card.className = 'recipe-card';
         card.innerHTML = `
@@ -86,7 +92,8 @@ onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snap
             <h3 class="card-title">${data.title}</h3>
             <small>投稿者: ${data.author}</small>
             <div class="recipe-details">
-                <p><strong>材料:</strong> ${data.ingredients.map(i => i.name).join(', ')}</p>
+                <p><strong>材料:</strong> ${ingredientsHTML}</p>
+                <p><strong>手順:</strong> <ol>${stepsListHTML}</ol></p> 
                 <p><strong>ポイント:</strong> ${data.point}</p>
             </div>
         `;
