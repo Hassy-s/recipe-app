@@ -49,3 +49,22 @@ button { border: none; padding: 12px; border-radius: 10px; cursor: pointer; font
     display: flex;
     gap: 4px; /* 単位と量の間のスペース */
 }
+.serving-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-actions {
+    display: none;
+    gap: 8px;
+}
+
+.recipe-card.open .card-actions {
+    display: flex;
+}
+
+.card-actions button {
+    font-size: 0.85rem;
+    padding: 4px 8px;
+}
