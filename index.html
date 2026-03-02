@@ -1,64 +1,116 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>みんなのレシピ帳</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <header>
-        <h1>🍳 共有レシピ帳</h1>
-    </header>
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, deleteDoc, doc } 
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    <main>
-        <section id="upload-section">
-            <h2>新しいレシピを投稿</h2>
-            <form id="recipe-form">
-                <input type="text" id="author" placeholder="投稿者名" required>
-                <input type="text" id="title" placeholder="料理名" required>
-                
-                <div class="input-group">
-                    <label>材料を追加</label>
-                    <div class="ingredient-input-box">
-                        <input type="text" id="temp-ingredient" placeholder="材料名">
-                        <input type="number" id="temp-amount-num" placeholder="量" style="width: 80px;">
-                        <select id="temp-unit">
-                            <option value="">単位</option>
-                            <option value="g">g</option>
-                            <option value="ml">ml</option>
-                            <option value="個">個</option>
-                            <option value="大さじ">大さじ</option>
-                            <option value="小さじ">小さじ</option>
-                        </select>
-                        <button type="button" id="add-ingredient-btn">＋</button>
-                    </div>
-                </div>
+// ⚠️ Firebase設定 (必ずご自身のものに差し替えてください)
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
 
-                <ul id="ingredient-list" class="temp-list"></ul>
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-                <div class="input-group">
-                    <label>手順を追加</label>
-                    <div class="ingredient-input-box">
-                        <input type="text" id="temp-step" placeholder="手順">
-                        <button type="button" id="add-step-btn">＋</button>
-                    </div>
-                </div>
+const recipeForm = document.getElementById('recipe-form');
+const container = document.getElementById('container');
 
-                <ol id="step-list" class="temp-list"></ol>
+let tempIngredients = [];
+let tempSteps = [];
 
-                <input type="text" id="point" placeholder="美味しく作るポイント！">
-                
-                <button type="submit" class="submit-btn">レシピを投稿する</button>
-            </form>
-        </section>
+// --- 一時リストの更新 ---
+function updateTempList(listId, dataArray, type) {
+    const listElement = document.getElementById(listId);
+    listElement.innerHTML = '';
+    dataArray.forEach((item, index) => {
+        const li = document.createElement('li');
+        let text = type === 'ingredients' ? `${item.name} ${item.amount}${item.unit}` : item;
+        li.innerHTML = `<span>${text}</span> <button type="button" class="remove-temp-btn" data-index="${index}">削除</button>`;
+        listElement.appendChild(li);
+    });
+}
 
-        <section id="recipe-list">
-            <h2>我らの秘伝レシピ集</h2>
-            <div id="container"></div>
-        </section>
-    </main>
+// --- 材料・手順追加 ---
+document.getElementById('add-ingredient-btn').addEventListener('click', () => {
+    const name = document.getElementById('temp-ingredient').value;
+    const amount = document.getElementById('temp-amount-num').value;
+    const unit = document.getElementById('temp-unit').value;
+    if (!name) return;
+    tempIngredients.push({ name, amount, unit });
+    updateTempList('ingredient-list', tempIngredients, 'ingredients');
+    document.getElementById('temp-ingredient').value = '';
+    document.getElementById('temp-amount-num').value = '';
+});
 
-    <script type="module" src="script.js"></script>
-</body>
-</html>
+document.getElementById('add-step-btn').addEventListener('click', () => {
+    const step = document.getElementById('temp-step').value;
+    if (!step) return;
+    tempSteps.push(step);
+    updateTempList('step-list', tempSteps, 'steps');
+    document.getElementById('temp-step').value = '';
+});
+
+// --- 投稿処理 ---
+recipeForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const title = document.getElementById('title').value;
+    const author = document.getElementById('author').value;
+    const point = document.getElementById('point').value;
+    
+    if (tempIngredients.length === 0 || tempSteps.length === 0) {
+        alert("材料と手順を追加してください");
+        return;
+    }
+    
+    await addDoc(collection(db, "recipes"), {
+        title, author, ingredients: tempIngredients, steps: tempSteps, point, createdAt: new Date()
+    });
+    
+    recipeForm.reset();
+    tempIngredients = []; tempSteps = [];
+    document.getElementById('ingredient-list').innerHTML = '';
+    document.getElementById('step-list').innerHTML = '';
+});
+
+// --- リアルタイム表示とクリックイベント ---
+onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snapshot) => {
+    container.innerHTML = "";
+    snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        
+        // データが存在することを確認してから配列処理をする（エラー防止）
+        const stepsListHTML = data.steps ? data.steps.map(step => `<li>${step}</li>`).join('') : '';
+        const ingredientsHTML = data.ingredients ? data.ingredients.map(i => `${i.name} ${i.amount}${i.unit}`).join(', ') : '';
+
+        const card = document.createElement('div');
+        card.className = 'recipe-card';
+        card.innerHTML = `
+            <button class="delete-btn" data-id="${docSnap.id}">削除</button>
+            <h3 class="card-title">${data.title}</h3>
+            <small>投稿者: ${data.author}</small>
+            <div class="recipe-details">
+                <p><strong>材料:</strong> ${ingredientsHTML}</p>
+                <p><strong>手順:</strong> <ol>${stepsListHTML}</ol></p> 
+                <p><strong>ポイント:</strong> ${data.point}</p>
+            </div>
+        `;
+        
+        // 🔥 クリックで展開（展開イベントの競合を防止）
+        card.addEventListener('click', (e) => {
+            // もし「削除ボタン」をクリックした場合は展開処理をしない
+            if (e.target.classList.contains('delete-btn')) return;
+            card.classList.toggle('open');
+        });
+        
+        // 削除ボタン
+        card.querySelector('.delete-btn').addEventListener('click', async (e) => {
+            e.stopPropagation(); // 展開イベントを停止
+            if(confirm('削除しますか？')) await deleteDoc(doc(db, "recipes", docSnap.id));
+        });
+        
+        container.appendChild(card);
+    });
+});
