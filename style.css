@@ -1,0 +1,22 @@
+body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #fff9f0; color: #444; padding: 20px; margin: 0; }
+header { text-align: center; padding: 10px 0; color: #ff6b6b; }
+#upload-section { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 600px; margin: 0 auto 20px; }
+input, select { width: 100%; margin-bottom: 10px; padding: 12px; border: 2px solid #eee; border-radius: 10px; box-sizing: border-box; }
+.input-group { margin-bottom: 10px; }
+.ingredient-input-box { display: flex; gap: 5px; }
+.ingredient-input-box input, .ingredient-input-box select { margin-bottom: 0; }
+button { border: none; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: bold; }
+#add-ingredient-btn, #add-step-btn { background-color: #ff9f43; color: white; min-width: 50px; }
+.submit-btn { background: linear-gradient(135deg, #ff9f43, #ff6b6b); color: white; width: 100%; }
+.temp-list { padding-left: 20px; font-size: 0.9rem; }
+.remove-temp-btn { background: #eee; padding: 2px 5px; font-size: 0.7rem; margin-left: 5px; }
+
+/* カードエリア */
+#container { display: grid; gap: 20px; max-width: 1200px; margin: 0 auto; }
+@media (min-width: 601px) { #container { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); } }
+
+.recipe-card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 5px solid #ff9f43; position: relative; cursor: pointer; }
+.card-title { margin: 0 0 10px 0; color: #333; }
+.recipe-details { display: none; margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; }
+.recipe-card.open .recipe-details { display: block; }
+.delete-btn { background-color: #ff6b6b; color: white; position: absolute; top: 10px; right: 10px; font-size: 0.7rem; padding: 5px; }
