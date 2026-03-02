@@ -40,7 +40,6 @@ function updateTempList(listId, dataArray, type) {
 
     dataArray.forEach((item, index) => {
         const li = document.createElement('li');
-
         const text = type === 'ingredients'
             ? `${item.name} ${item.amount}${item.unit}`
             : item;
@@ -51,7 +50,6 @@ function updateTempList(listId, dataArray, type) {
                 削除
             </button>
         `;
-
         listElement.appendChild(li);
     });
 }
@@ -60,7 +58,6 @@ function updateTempList(listId, dataArray, type) {
    一時削除（イベント委任）
 ============================= */
 document.addEventListener('click', (e) => {
-
     if (!e.target.classList.contains('remove-temp-btn')) return;
 
     const index = Number(e.target.dataset.index);
@@ -102,7 +99,6 @@ document.getElementById('add-step-btn').addEventListener('click', () => {
 
     tempSteps.push(step);
     updateTempList('step-list', tempSteps, 'steps');
-
     document.getElementById('temp-step').value = '';
 });
 
@@ -196,45 +192,24 @@ onSnapshot(
                 ? data.steps.map(step => `<li>${step}</li>`).join('')
                 : '';
 
-card.innerHTML = `
-    <h3>${data.title}</h3>
-    <small>投稿者: ${data.author}</small>
-
-    <div class="recipe-details">
-        <div class="serving-row">
-            <div>
-                <strong>何人前：</strong>
-                <button class="minus-btn">−</button>
-                <span class="serving-count">1</span>
-                <button class="plus-btn">＋</button>
-            </div>
-
-            <div class="card-actions">
-                <button class="edit-btn">編集</button>
-                <button class="delete-btn">削除</button>
-            </div>
-        </div>
-
-        <p><strong>材料:</strong></p>
-        <ul class="ingredient-list">
-            ${renderIngredients(1)}
-        </ul>
-
-        <p><strong>手順:</strong></p>
-        <ol>${stepsHTML}</ol>
-
-        <p><strong>ポイント:</strong> ${data.point}</p>
-    </div>
-`;
+            card.innerHTML = `
                 <h3>${data.title}</h3>
                 <small>投稿者: ${data.author}</small>
 
                 <div class="recipe-details">
-                    <div>
-                        <strong>何人前：</strong>
-                        <button class="minus-btn">−</button>
-                        <span class="serving-count">1</span>
-                        <button class="plus-btn">＋</button>
+
+                    <div class="serving-row">
+                        <div>
+                            <strong>何人前：</strong>
+                            <button class="minus-btn">−</button>
+                            <span class="serving-count">1</span>
+                            <button class="plus-btn">＋</button>
+                        </div>
+
+                        <div class="card-actions">
+                            <button class="edit-btn">編集</button>
+                            <button class="delete-btn">削除</button>
+                        </div>
                     </div>
 
                     <p><strong>材料:</strong></p>
@@ -243,13 +218,16 @@ card.innerHTML = `
                     </ul>
 
                     <p><strong>手順:</strong></p>
-                    <ol>${stepsHTML}</ol>
+                    <ol>
+                        ${stepsHTML}
+                    </ol>
 
-                    <p><strong>ポイント:</strong> ${data.point}</p>
+                    <p><strong>ポイント:</strong> ${data.point || ''}</p>
+
                 </div>
             `;
 
-            /* --- カード開閉 --- */
+            /* カード開閉 */
             card.addEventListener('click', (e) => {
                 if (
                     e.target.classList.contains('delete-btn') ||
@@ -261,7 +239,7 @@ card.innerHTML = `
                 card.classList.toggle('open');
             });
 
-            /* --- 人前変更 --- */
+            /* 人前変更 */
             const countSpan = card.querySelector('.serving-count');
 
             card.querySelector('.plus-btn').addEventListener('click', (e) => {
@@ -282,7 +260,7 @@ card.innerHTML = `
                 }
             });
 
-            /* --- 編集 --- */
+            /* 編集 */
             card.querySelector('.edit-btn').addEventListener('click', (e) => {
                 e.stopPropagation();
 
@@ -302,7 +280,7 @@ card.innerHTML = `
                 window.scrollTo({ top: 0, behavior: "smooth" });
             });
 
-            /* --- 削除 --- */
+            /* 削除 */
             card.querySelector('.delete-btn').addEventListener('click', async (e) => {
                 e.stopPropagation();
                 if (confirm("削除しますか？")) {
@@ -314,4 +292,3 @@ card.innerHTML = `
         });
     }
 );
-
