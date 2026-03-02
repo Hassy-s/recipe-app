@@ -2,66 +2,57 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>みんなのレシピ帳</title>
-    <link rel="stylesheet" href="style.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>秘伝のレシピ集</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="module" src="script.js"></script>
 </head>
 <body>
+
     <header>
-        <h1>🍳 共有レシピ帳</h1>
+        <h1>🍳 我らの秘伝レシピ集</h1>
     </header>
 
-    <main>
-        <section id="upload-section">
-            <h2>新しいレシピを投稿</h2>
-            <form id="recipe-form">
-                <input type="text" id="author" placeholder="投稿者名" required>
-                <input type="text" id="title" placeholder="料理名" required>
-                
-                <div class="input-group">
-                    <label>材料を追加</label>
-                    <div class="ingredient-input-box">
-                        <input type="text" id="temp-ingredient" placeholder="材料名">
-                        <input type="number" id="temp-amount-num" placeholder="量" style="width: 80px;">
-                        <select id="temp-unit">
-                            <option value="">単位</option>
-                            <option value="g">g</option>
-                            <option value="ml">ml</option>
-                            <option value="個">個</option>
-                            <option value="大さじ">大さじ</option>
-                            <option value="小さじ">小さじ</option>
-                        </select>
-                        <button type="button" id="add-ingredient-btn">＋</button>
-                    </div>
+    <div id="upload-section">
+        <h2>新しいレシピを投稿</h2>
+        <form id="recipe-form">
+            <input type="text" id="author" placeholder="投稿者名" required>
+            <input type="text" id="title" placeholder="料理名" required>
+            
+            <div class="input-group">
+                <p>材料を追加</p>
+                <div class="ingredient-input-box">
+                    <input type="text" id="temp-ingredient" placeholder="材料名">
+                    <input type="number" id="temp-amount-num" placeholder="量" style="width: 80px;">
+                    <select id="temp-unit" style="width: 100px;">
+                        <option value="g">g</option>
+                        <option value="ml">ml</option>
+                        <option value="cc">cc</option>
+                        <option value="大さじ">大さじ</option>
+                        <option value="小さじ">小さじ</option>
+                        <option value="個">個</option>
+                    </select>
+                    <button type="button" id="add-ingredient-btn">+</button>
                 </div>
-
                 <ul id="ingredient-list" class="temp-list"></ul>
+            </div>
 
-                <div class="input-group">
-                    <label>手順を追加</label>
-                    <div class="ingredient-input-box">
-                        <input type="text" id="temp-step" placeholder="手順">
-                        <button type="button" id="add-step-btn">＋</button>
-                    </div>
+            <div class="input-group">
+                <p>手順を追加</p>
+                <div class="ingredient-input-box">
+                    <input type="text" id="temp-step" placeholder="手順">
+                    <button type="button" id="add-step-btn">+</button>
                 </div>
-
                 <ol id="step-list" class="temp-list"></ol>
+            </div>
 
-                <input type="text" id="point" placeholder="美味しく作るポイント！">
-                
-                <button type="submit" class="submit-btn">レシピを投稿する</button>
-            </form>
-        </section>
+            <input type="text" id="point" placeholder="美味しく作るポイント！">
+            
+            <button type="submit" class="submit-btn">レシピを投稿する</button>
+        </form>
+    </div>
 
-        <section id="recipe-list">
-            <h2>我らの秘伝レシピ集</h2>
-            <div id="container"></div>
-        </section>
-    </main>
+    <div id="container"></div>
 
-    <script type="module" src="script.js"></script>
 </body>
 </html>
-
-
