@@ -27,103 +27,158 @@ function updateTempList(listId, dataArray, type) {
     listElement.innerHTML = '';
     dataArray.forEach((item, index) => {
         const li = document.createElement('li');
-        let text = type === 'ingredients' ? `${item.name} ${item.amount}${item.unit}` : item;
-        li.innerHTML = `<span>${text}</span> <button type="button" class="remove-temp-btn" data-index="${index}">削除</button>`;
+        let text = type === 'ingredients'
+            ? `${item.name} ${item.amount}${item.unit}`
+            : item;
+
+        li.innerHTML = `
+            <span>${text}</span>
+            <button type="button" class="remove-temp-btn" data-index="${index}">
+                削除
+            </button>
+        `;
         listElement.appendChild(li);
     });
 }
 
-// --- 材料・手順追加 ---
+// --- 材料追加 ---
 document.getElementById('add-ingredient-btn').addEventListener('click', () => {
     const name = document.getElementById('temp-ingredient').value;
     const amount = document.getElementById('temp-amount-num').value;
     const unit = document.getElementById('temp-unit').value;
+
     if (!name) return;
+
     tempIngredients.push({ name, amount, unit });
     updateTempList('ingredient-list', tempIngredients, 'ingredients');
+
     document.getElementById('temp-ingredient').value = '';
     document.getElementById('temp-amount-num').value = '';
 });
 
+// --- 手順追加 ---
 document.getElementById('add-step-btn').addEventListener('click', () => {
     const step = document.getElementById('temp-step').value;
     if (!step) return;
+
     tempSteps.push(step);
     updateTempList('step-list', tempSteps, 'steps');
+
     document.getElementById('temp-step').value = '';
 });
 
 // --- 投稿処理 ---
 recipeForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+
     const title = document.getElementById('title').value;
     const author = document.getElementById('author').value;
     const point = document.getElementById('point').value;
-    
+
     if (tempIngredients.length === 0 || tempSteps.length === 0) {
         alert("材料と手順を追加してください");
         return;
     }
-    
+
     await addDoc(collection(db, "recipes"), {
-        title, author, ingredients: tempIngredients, steps: tempSteps, point, createdAt: new Date()
+        title,
+        author,
+        ingredients: tempIngredients,
+        steps: tempSteps,
+        point,
+        createdAt: new Date()
     });
-    
+
     recipeForm.reset();
-    tempIngredients = []; tempSteps = [];
+    tempIngredients = [];
+    tempSteps = [];
     document.getElementById('ingredient-list').innerHTML = '';
     document.getElementById('step-list').innerHTML = '';
 });
 
-// --- リアルタイム表示とクリックイベント ---
+// --- リアルタイム表示 ---
 onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snapshot) => {
+
     container.innerHTML = "";
+
     snapshot.forEach((docSnap) => {
         const data = docSnap.data();
-        
-        const stepsListHTML = data.steps ? data.steps.map(step => `<li>${step}</li>`).join('') : '';
-        
-        // 🔥 【修正】JS側でHTML構造自体を変える
-        const ingredientsHTML = data.ingredients ? data.ingredients.map(i => {
-            let amountElement;
-            // 💡 ここのIF文で条件分岐をしています
-            if (i.unit === '大さじ' || i.unit === '小さじ') {
-                // 大さじ・小さじなら：[単位][量]
-                amountElement = `<span class="unit">${i.unit}</span> <span class="amount">${i.amount}</span>`;
-            } else {
-                // それ以外なら：[量][単位]
-                amountElement = `<span class="amount">${i.amount}</span><span class="unit">${i.unit}</span>`;
-            }
-            // クラス名を明確にしてスタイルを適用
-            return `<li class="ingredient-item"><span class="ing-name">${i.name}</span><span class="ing-amount">${amountElement}</span></li>`;
-        }).join('') : '';
 
+        // --- 手順HTML ---
+        const stepsListHTML = data.steps
+            ? data.steps.map(step => `<li>${step}</li>`).join('')
+            : '';
+
+        // --- 材料HTML（🔥修正版） ---
+        const ingredientsHTML = data.ingredients
+            ? data.ingredients.map(i => {
+
+                const unit = (i.unit || '').trim();
+                const amount = (i.amount || '').trim();
+                const name = (i.name || '').trim();
+
+                let amountElement;
+
+                // ✅ 大さじ・小さじだけ「単位：量」にする
+                if (['大さじ', '小さじ'].includes(unit)) {
+                    amountElement = `
+                        <span class="unit">${unit}</span>
+                        <span class="amount">：${amount}</span>
+                    `;
+                } else {
+                    amountElement = `
+                        <span class="amount">${amount}</span>
+                        <span class="unit">${unit}</span>
+                    `;
+                }
+
+                return `
+                    <li class="ingredient-item">
+                        <span class="ing-name">${name}</span>
+                        <span class="ing-amount">
+                            ${amountElement}
+                        </span>
+                    </li>
+                `;
+            }).join('')
+            : '';
+
+        // --- カード生成 ---
         const card = document.createElement('div');
         card.className = 'recipe-card';
+
         card.innerHTML = `
             <button class="delete-btn" data-id="${docSnap.id}">削除</button>
             <h3 class="card-title">${data.title}</h3>
             <small>投稿者: ${data.author}</small>
+
             <div class="recipe-details">
                 <p><strong>材料:</strong></p>
-                <ul class="ingredient-list-style">${ingredientsHTML}</ul>
-                <p><strong>手順:</strong> <ol>${stepsListHTML}</ol></p> 
+                <ul class="ingredient-list-style">
+                    ${ingredientsHTML}
+                </ul>
+
+                <p><strong>手順:</strong></p>
+                <ol>${stepsListHTML}</ol>
+
                 <p><strong>ポイント:</strong> ${data.point}</p>
             </div>
         `;
-        
-        // クリックで展開（イベントの競合を防止）
+
+        // 展開処理
         card.addEventListener('click', (e) => {
             if (e.target.classList.contains('delete-btn')) return;
             card.classList.toggle('open');
         });
-        
-        // 削除ボタン
+
+        // 削除処理
         card.querySelector('.delete-btn').addEventListener('click', async (e) => {
             e.stopPropagation();
-            if(confirm('削除しますか？')) await deleteDoc(doc(db, "recipes", docSnap.id));
+            if (confirm('削除しますか？')) {
+                await deleteDoc(doc(db, "recipes", docSnap.id));
+            }
         });
-        
+
         container.appendChild(card);
     });
 });
