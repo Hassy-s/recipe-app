@@ -31,9 +31,9 @@ let tempIngredients = [];
 let tempSteps = [];
 let editingId = null;
 
-/* ----------------------------
+/* =============================
    一時リスト表示
----------------------------- */
+============================= */
 function updateTempList(listId, dataArray, type) {
     const listElement = document.getElementById(listId);
     listElement.innerHTML = '';
@@ -41,7 +41,7 @@ function updateTempList(listId, dataArray, type) {
     dataArray.forEach((item, index) => {
         const li = document.createElement('li');
 
-        let text = type === 'ingredients'
+        const text = type === 'ingredients'
             ? `${item.name} ${item.amount}${item.unit}`
             : item;
 
@@ -51,35 +51,34 @@ function updateTempList(listId, dataArray, type) {
                 削除
             </button>
         `;
+
         listElement.appendChild(li);
     });
 }
 
-/* ----------------------------
-   🔥 一時削除（完全版）
----------------------------- */
+/* =============================
+   一時削除（イベント委任）
+============================= */
 document.addEventListener('click', (e) => {
 
     if (!e.target.classList.contains('remove-temp-btn')) return;
 
     const index = Number(e.target.dataset.index);
 
-    // 材料削除
     if (e.target.closest('#ingredient-list')) {
         tempIngredients.splice(index, 1);
         updateTempList('ingredient-list', tempIngredients, 'ingredients');
     }
 
-    // 手順削除
     if (e.target.closest('#step-list')) {
         tempSteps.splice(index, 1);
         updateTempList('step-list', tempSteps, 'steps');
     }
 });
 
-/* ----------------------------
+/* =============================
    材料追加
----------------------------- */
+============================= */
 document.getElementById('add-ingredient-btn').addEventListener('click', () => {
     const name = document.getElementById('temp-ingredient').value;
     const amount = document.getElementById('temp-amount-num').value;
@@ -94,21 +93,22 @@ document.getElementById('add-ingredient-btn').addEventListener('click', () => {
     document.getElementById('temp-amount-num').value = '';
 });
 
-/* ----------------------------
+/* =============================
    手順追加
----------------------------- */
+============================= */
 document.getElementById('add-step-btn').addEventListener('click', () => {
     const step = document.getElementById('temp-step').value;
     if (!step) return;
 
     tempSteps.push(step);
     updateTempList('step-list', tempSteps, 'steps');
+
     document.getElementById('temp-step').value = '';
 });
 
-/* ----------------------------
+/* =============================
    投稿 / 更新
----------------------------- */
+============================= */
 recipeForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -129,7 +129,6 @@ recipeForm.addEventListener('submit', async (e) => {
             steps: tempSteps,
             point
         });
-
         editingId = null;
         submitBtn.textContent = "投稿する";
     } else {
@@ -150,9 +149,9 @@ recipeForm.addEventListener('submit', async (e) => {
     document.getElementById('step-list').innerHTML = '';
 });
 
-/* ----------------------------
+/* =============================
    レシピ表示
----------------------------- */
+============================= */
 onSnapshot(
     query(collection(db, "recipes"), orderBy("createdAt", "desc")),
     (snapshot) => {
@@ -184,25 +183,22 @@ onSnapshot(
                         .replace(/\.00$/, '')
                         .replace(/(\.\d)0$/, '$1');
 
-                    let amountText =
+                    const amountText =
                         ['大さじ', '小さじ'].includes(unit)
                             ? `${unit}：${formatted}`
                             : `${formatted}${unit}`;
 
-                    return `
-                        <li class="ingredient-item">
-                            <span>${name}</span>
-                            <span>${amountText}</span>
-                        </li>
-                    `;
+                    return `<li>${name} ${amountText}</li>`;
                 }).join('');
             }
 
-            const stepsHTML = data.steps.map(step => `<li>${step}</li>`).join('');
+            const stepsHTML = data.steps
+                ? data.steps.map(step => `<li>${step}</li>`).join('')
+                : '';
 
             card.innerHTML = `
                 <button class="edit-btn">編集</button>
-                <button class="delete-btn" data-id="${docSnap.id}">削除</button>
+                <button class="delete-btn">削除</button>
                 <h3>${data.title}</h3>
                 <small>投稿者: ${data.author}</small>
 
@@ -215,7 +211,9 @@ onSnapshot(
                     </div>
 
                     <p><strong>材料:</strong></p>
-                    <ul>${renderIngredients(1)}</ul>
+                    <ul class="ingredient-list">
+                        ${renderIngredients(1)}
+                    </ul>
 
                     <p><strong>手順:</strong></p>
                     <ol>${stepsHTML}</ol>
@@ -224,8 +222,68 @@ onSnapshot(
                 </div>
             `;
 
+            /* --- カード開閉 --- */
+            card.addEventListener('click', (e) => {
+                if (
+                    e.target.classList.contains('delete-btn') ||
+                    e.target.classList.contains('edit-btn') ||
+                    e.target.classList.contains('plus-btn') ||
+                    e.target.classList.contains('minus-btn')
+                ) return;
+
+                card.classList.toggle('open');
+            });
+
+            /* --- 人前変更 --- */
+            const countSpan = card.querySelector('.serving-count');
+
+            card.querySelector('.plus-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                currentServings++;
+                countSpan.textContent = currentServings;
+                card.querySelector('.ingredient-list').innerHTML =
+                    renderIngredients(currentServings);
+            });
+
+            card.querySelector('.minus-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (currentServings > 1) {
+                    currentServings--;
+                    countSpan.textContent = currentServings;
+                    card.querySelector('.ingredient-list').innerHTML =
+                        renderIngredients(currentServings);
+                }
+            });
+
+            /* --- 編集 --- */
+            card.querySelector('.edit-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+
+                editingId = docSnap.id;
+
+                document.getElementById('title').value = data.title;
+                document.getElementById('author').value = data.author;
+                document.getElementById('point').value = data.point;
+
+                tempIngredients = [...data.ingredients];
+                tempSteps = [...data.steps];
+
+                updateTempList('ingredient-list', tempIngredients, 'ingredients');
+                updateTempList('step-list', tempSteps, 'steps');
+
+                submitBtn.textContent = "更新する";
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            });
+
+            /* --- 削除 --- */
+            card.querySelector('.delete-btn').addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (confirm("削除しますか？")) {
+                    await deleteDoc(doc(db, "recipes", docSnap.id));
+                }
+            });
+
             container.appendChild(card);
         });
     }
 );
-
