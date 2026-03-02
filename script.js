@@ -196,9 +196,36 @@ onSnapshot(
                 ? data.steps.map(step => `<li>${step}</li>`).join('')
                 : '';
 
-            card.innerHTML = `
+card.innerHTML = `
+    <h3>${data.title}</h3>
+    <small>投稿者: ${data.author}</small>
+
+    <div class="recipe-details">
+        <div class="serving-row">
+            <div>
+                <strong>何人前：</strong>
+                <button class="minus-btn">−</button>
+                <span class="serving-count">1</span>
+                <button class="plus-btn">＋</button>
+            </div>
+
+            <div class="card-actions">
                 <button class="edit-btn">編集</button>
                 <button class="delete-btn">削除</button>
+            </div>
+        </div>
+
+        <p><strong>材料:</strong></p>
+        <ul class="ingredient-list">
+            ${renderIngredients(1)}
+        </ul>
+
+        <p><strong>手順:</strong></p>
+        <ol>${stepsHTML}</ol>
+
+        <p><strong>ポイント:</strong> ${data.point}</p>
+    </div>
+`;
                 <h3>${data.title}</h3>
                 <small>投稿者: ${data.author}</small>
 
@@ -287,3 +314,4 @@ onSnapshot(
         });
     }
 );
+
