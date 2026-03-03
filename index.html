@@ -24,14 +24,37 @@
                 <div class="ingredient-input-box">
                     <input type="text" id="temp-ingredient" placeholder="材料名">
                     <input type="number" id="temp-amount-num" placeholder="量" style="width: 80px;">
-                    <select id="temp-unit" style="width: 100px;">
+
+                    <select id="temp-unit" style="width: 120px;">
+                        <!-- ✅ 単位なしOK -->
+                        <option value="">（なし）</option>
+
+                        <!-- 基本 -->
                         <option value="g">g</option>
+                        <option value="kg">kg</option>
                         <option value="ml">ml</option>
+                        <option value="L">L</option>
                         <option value="cc">cc</option>
+
+                        <!-- スプーン -->
                         <option value="大さじ">大さじ</option>
                         <option value="小さじ">小さじ</option>
+
+                        <!-- 個数・本数 -->
                         <option value="個">個</option>
+                        <option value="本">本</option>
+                        <option value="枚">枚</option>
+
+                        <!-- 料理でよく使う -->
+                        <option value="カップ">カップ</option>
+                        <option value="片">片</option>
+                        <option value="房">房</option>
+
+                        <!-- あいまい系（量欄が空でも使える想定） -->
+                        <option value="少々">少々</option>
+                        <option value="適量">適量</option>
                     </select>
+
                     <button type="button" id="add-ingredient-btn">+</button>
                 </div>
                 <ul id="ingredient-list" class="temp-list"></ul>
@@ -50,6 +73,11 @@
             
             <button type="submit" class="submit-btn">レシピを投稿する</button>
         </form>
+    </div>
+
+    <!-- ✅ ここに検索窓（フォームの下、カードの上） -->
+    <div id="search-section">
+        <input type="text" id="search-box" placeholder="検索：料理名 / 投稿者 / 材料 / 手順 / ポイント">
     </div>
 
     <div id="container"></div>
