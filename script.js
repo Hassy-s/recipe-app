@@ -138,7 +138,21 @@ document.addEventListener("click", (e) => {
     updateTempList("step-list", tempSteps, "steps");
   }
 });
+/* =============================
+   よく使う材料ボタン
+   押したら材料名欄に入れる
+============================= */
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".quick-ing");
+  if (!btn) return;
 
+  const name = btn.dataset.name || "";
+  const input = document.getElementById("temp-ingredient");
+  if (!input) return;
+
+  input.value = name;
+  input.focus();
+});
 /* =============================
    材料追加
    ✅ 単位なしOK / 少々・適量など（量なしでもOK）
@@ -431,4 +445,5 @@ if (searchBox) {
     renderAll();
   });
 }
+
 
