@@ -12,24 +12,33 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 /* =============================
-   合言葉（ここだけ必ず設定）
+   合言葉（ルールと一致させる）
 ============================= */
-const SECRET_WORD = "8484"; // ← Firestoreルールと同じにする
+const SECRET_WORD = "合言葉123"; // ← Firestoreルールの合言葉と同じ
 
 /* =============================
-   合言葉チェック（A: 最初に必ず聞く）
+   合言葉チェック（無限ループ）
+   正しいまで閲覧できない運用
 ============================= */
 function checkSecretAtStart() {
   const saved = localStorage.getItem("secretKey");
   if (saved === SECRET_WORD) return;
 
-  const input = prompt("投稿用パスワードを入力してください");
-  if (input === SECRET_WORD) {
-    localStorage.setItem("secretKey", input);
-    alert("投稿モードが有効になりました");
-  } else {
-    alert("パスワードが違います（閲覧はできます）");
+  let input = null;
+  while (input !== SECRET_WORD) {
+    input = prompt("閲覧・投稿するにはパスワードを入力してください");
+
+    if (input === null) {
+      alert("このページを利用するにはパスワードが必要です。");
+      continue;
+    }
+    if (input !== SECRET_WORD) {
+      alert("パスワードが違います。");
+    }
   }
+
+  localStorage.setItem("secretKey", SECRET_WORD);
+  alert("認証成功");
 }
 checkSecretAtStart();
 
@@ -51,6 +60,7 @@ const db = getFirestore(app);
 const recipeForm = document.getElementById("recipe-form");
 const container = document.getElementById("container");
 const submitBtn = document.querySelector(".submit-btn");
+const searchBox = document.getElementById("search-box");
 
 let tempIngredients = [];
 let tempSteps = [];
@@ -63,11 +73,7 @@ function toFraction(num) {
   const whole = Math.floor(num);
   const decimal = Number((num - whole).toFixed(2));
 
-  const fractionMap = {
-    0.25: "¼",
-    0.5: "½",
-    0.75: "¾"
-  };
+  const fractionMap = { 0.25: "¼", 0.5: "½", 0.75: "¾" };
 
   if (decimal === 0) return whole.toString();
 
@@ -83,6 +89,13 @@ function toFraction(num) {
 }
 
 /* =============================
+   検索用：文字列正規化
+============================= */
+function normalizeText(s) {
+  return (s || "").toString().toLowerCase().trim();
+}
+
+/* =============================
    一時リスト表示
 ============================= */
 function updateTempList(listId, dataArray, type) {
@@ -91,8 +104,11 @@ function updateTempList(listId, dataArray, type) {
 
   dataArray.forEach((item, index) => {
     const li = document.createElement("li");
+
     const text =
-      type === "ingredients" ? `${item.name} ${item.amount}${item.unit}` : item;
+      type === "ingredients"
+        ? `${item.name || ""} ${item.amount || ""}${item.unit || ""}`
+        : (item || "");
 
     li.innerHTML = `
       <span>${text}</span>
@@ -125,15 +141,22 @@ document.addEventListener("click", (e) => {
 
 /* =============================
    材料追加
+   ✅ 単位なしOK / 少々・適量など（量なしでもOK）
 ============================= */
 document.getElementById("add-ingredient-btn").addEventListener("click", () => {
-  const name = document.getElementById("temp-ingredient").value;
-  const amount = document.getElementById("temp-amount-num").value;
-  const unit = document.getElementById("temp-unit").value;
+  const name = document.getElementById("temp-ingredient").value.trim();
+  const amountRaw = document.getElementById("temp-amount-num").value; // 空もあり
+  const unit = document.getElementById("temp-unit").value; // ""もあり
 
   if (!name) return;
 
-  tempIngredients.push({ name, amount, unit });
+  // 量は空でもOK（少々・適量・単位なしの時など）
+  tempIngredients.push({
+    name,
+    amount: amountRaw, // 文字列のまま持つ
+    unit
+  });
+
   updateTempList("ingredient-list", tempIngredients, "ingredients");
 
   document.getElementById("temp-ingredient").value = "";
@@ -144,7 +167,7 @@ document.getElementById("add-ingredient-btn").addEventListener("click", () => {
    手順追加
 ============================= */
 document.getElementById("add-step-btn").addEventListener("click", () => {
-  const step = document.getElementById("temp-step").value;
+  const step = document.getElementById("temp-step").value.trim();
   if (!step) return;
 
   tempSteps.push(step);
@@ -153,25 +176,28 @@ document.getElementById("add-step-btn").addEventListener("click", () => {
 });
 
 /* =============================
-   投稿 / 更新
+   投稿 / 更新（secret付与）
 ============================= */
 recipeForm.addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  const title = document.getElementById("title").value;
-  const author = document.getElementById("author").value;
-  const point = document.getElementById("point").value;
+  const title = document.getElementById("title").value.trim();
+  const author = document.getElementById("author").value.trim();
+  const point = document.getElementById("point").value.trim();
+  const secret = localStorage.getItem("secretKey");
+
+  if (!title || !author) {
+    alert("投稿者名と料理名は必須です");
+    return;
+  }
 
   if (tempIngredients.length === 0 || tempSteps.length === 0) {
     alert("材料と手順を追加してください");
     return;
   }
 
-  const secret = localStorage.getItem("secretKey");
-
-  // 合言葉が無い/不一致のまま投稿しようとした場合（UX保険）
   if (secret !== SECRET_WORD) {
-    alert("投稿用パスワードが未認証です。ページを再読み込みして正しいパスを入力してください。");
+    alert("投稿用パスワードが未認証です。再読み込みしてください。");
     return;
   }
 
@@ -184,8 +210,9 @@ recipeForm.addEventListener("submit", async (e) => {
       point,
       secret
     });
+
     editingId = null;
-    submitBtn.textContent = "投稿する";
+    submitBtn.textContent = "レシピを投稿する";
   } else {
     await addDoc(collection(db, "recipes"), {
       title,
@@ -206,27 +233,72 @@ recipeForm.addEventListener("submit", async (e) => {
 });
 
 /* =============================
-   レシピ表示
+   表示：検索対応のために
+   snapshotの内容を保持して再描画する
 ============================= */
-onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snapshot) => {
+let cachedDocs = []; // [{id, data}...]
+
+function buildSearchText(data) {
+  const title = normalizeText(data.title);
+  const author = normalizeText(data.author);
+  const point = normalizeText(data.point);
+
+  const ing = (data.ingredients || [])
+    .map(i => `${i.name || ""} ${i.amount || ""} ${i.unit || ""}`)
+    .join(" ");
+  const steps = (data.steps || []).join(" ");
+
+  return normalizeText(`${title} ${author} ${point} ${ing} ${steps}`);
+}
+
+function matchesSearch(data, rawQuery) {
+  const q = normalizeText(rawQuery);
+  if (!q) return true;
+
+  // スペース区切りAND検索（例：「うどん だし」）
+  const terms = q.split(/\s+/).filter(Boolean);
+  const hay = buildSearchText(data);
+
+  return terms.every(t => hay.includes(t));
+}
+
+function renderAll() {
   container.innerHTML = "";
 
-  snapshot.forEach((docSnap) => {
-    const data = docSnap.data();
-    let currentServings = 1;
+  const q = searchBox ? searchBox.value : "";
 
+  cachedDocs.forEach(({ id, data }) => {
+    if (!matchesSearch(data, q)) return;
+
+    let currentServings = 1;
     const card = document.createElement("div");
     card.className = "recipe-card";
 
     function renderIngredients(servings) {
       return (data.ingredients || []).map((i) => {
         const name = (i.name || "").trim();
-        let unit = (i.unit || "").trim();
-        let baseAmount = parseFloat(i.amount) || 0;
-        let newAmount = baseAmount * servings;
+        const unit = (i.unit || "").trim();
+        const amountRaw = (i.amount ?? "").toString().trim();
+
+        // ✅ 量が空でもOK（少々/適量/単位なし等）
+        // 量が数値として読めるときだけ計算する
+        const amountNum = amountRaw === "" ? NaN : parseFloat(amountRaw);
+        const canCalc = !Number.isNaN(amountNum);
+
+        // 量が数値でない/空の場合は、そのまま表示（単位があれば単位だけもOK）
+        if (!canCalc) {
+          // 単位だけ（少々/適量など）
+          if (amountRaw === "" && unit) return `<li>${name} ${unit}</li>`;
+          // 量だけ
+          if (amountRaw && !unit) return `<li>${name} ${amountRaw}</li>`;
+          // 量＋単位
+          return `<li>${name} ${amountRaw}${unit}</li>`;
+        }
+
+        // ここから計算対象
+        const newAmount = amountNum * servings;
 
         let amountText = "";
-
         if (unit === "小さじ") {
           const tablespoon = Math.floor(newAmount / 3);
           const teaspoon = Number((newAmount % 3).toFixed(2));
@@ -235,21 +307,25 @@ onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snap
           const tspText = teaspoon > 0 ? `小さじ${toFraction(teaspoon)}` : "";
 
           amountText = [tbspText, tspText].filter(Boolean).join(" ");
+          if (!amountText) amountText = `小さじ0`; // 念のため
         } else if (unit === "大さじ") {
           amountText = `大さじ${toFraction(newAmount)}`;
         } else {
-          amountText = `${toFraction(newAmount)}${unit}`;
+          // 単位なしOK
+          amountText = unit ? `${toFraction(newAmount)}${unit}` : `${toFraction(newAmount)}`;
         }
 
         return `<li>${name} ${amountText}</li>`;
       }).join("");
     }
 
-    const stepsHTML = data.steps ? data.steps.map((step) => `<li>${step}</li>`).join("") : "";
+    const stepsHTML = data.steps
+      ? data.steps.map((step) => `<li>${step}</li>`).join("")
+      : "";
 
     card.innerHTML = `
-      <h3>${data.title}</h3>
-      <small>投稿者: ${data.author}</small>
+      <h3>${data.title || ""}</h3>
+      <small>投稿者: ${data.author || ""}</small>
 
       <div class="recipe-details">
         <div class="serving-row">
@@ -278,7 +354,7 @@ onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snap
       </div>
     `;
 
-    // カード開閉（ボタン押下は除外）
+    // カード開閉（ボタン類除外）
     card.addEventListener("click", (e) => {
       if (
         e.target.classList.contains("delete-btn") ||
@@ -289,7 +365,7 @@ onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snap
       card.classList.toggle("open");
     });
 
-    // 人前変更
+    // 人前
     const countSpan = card.querySelector(".serving-count");
 
     card.querySelector(".plus-btn").addEventListener("click", (e) => {
@@ -312,7 +388,7 @@ onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snap
     card.querySelector(".edit-btn").addEventListener("click", (e) => {
       e.stopPropagation();
 
-      editingId = docSnap.id;
+      editingId = id;
 
       document.getElementById("title").value = data.title || "";
       document.getElementById("author").value = data.author || "";
@@ -332,13 +408,26 @@ onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snap
     card.querySelector(".delete-btn").addEventListener("click", async (e) => {
       e.stopPropagation();
       if (!confirm("削除しますか？")) return;
-
-      // ルール側が resource.data.secret を見るので、
-      // 過去データに secret が無いと削除できません（必要なら一度編集→更新で付与されます）
-      await deleteDoc(doc(db, "recipes", docSnap.id));
+      await deleteDoc(doc(db, "recipes", id));
     });
 
     container.appendChild(card);
   });
+}
+
+/* =============================
+   Firestore購読 → キャッシュ → 描画
+============================= */
+onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snapshot) => {
+  cachedDocs = snapshot.docs.map(d => ({ id: d.id, data: d.data() }));
+  renderAll();
 });
 
+/* =============================
+   検索入力 → 再描画
+============================= */
+if (searchBox) {
+  searchBox.addEventListener("input", () => {
+    renderAll();
+  });
+}
