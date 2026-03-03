@@ -14,7 +14,7 @@ import {
 /* =============================
    合言葉（ここだけ必ず設定）
 ============================= */
-const SECRET_WORD = "合言葉123"; // ← Firestoreルールと同じにする
+const SECRET_WORD = "8484"; // ← Firestoreルールと同じにする
 
 /* =============================
    合言葉チェック（A: 最初に必ず聞く）
@@ -341,3 +341,4 @@ onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snap
     container.appendChild(card);
   });
 });
+
