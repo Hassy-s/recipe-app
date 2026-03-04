@@ -97,7 +97,8 @@ function normalizeText(s) {
 
 /* =============================
    オートコンプリート（datalist）
-   - 固定候補 + 過去レシピの材料名を候補にする
+   - クリックだけで全部出ない
+   - 1文字から絞り込み候補を出す
 ============================= */
 const INGREDIENT_PRESETS = [
   "砂糖", "塩", "酢", "醤油", "味噌", "みりん", "酒", "水",
@@ -108,13 +109,12 @@ const INGREDIENT_PRESETS = [
   "ごま", "すりごま", "片栗粉", "小麦粉"
 ];
 
-function updateIngredientDatalist(extraNames = []) {
+function updateIngredientDatalist(names = []) {
   const dl = document.getElementById("ingredient-suggestions");
   if (!dl) return;
 
   const set = new Set();
-  INGREDIENT_PRESETS.forEach(n => set.add(n));
-  extraNames.forEach(n => {
+  names.forEach(n => {
     const s = (n || "").toString().trim();
     if (s) set.add(s);
   });
@@ -123,8 +123,52 @@ function updateIngredientDatalist(extraNames = []) {
   dl.innerHTML = sorted.map(n => `<option value="${n}"></option>`).join("");
 }
 
-// 初期表示（固定候補だけでも出るように）
-updateIngredientDatalist();
+// ✅ 初期は空（クリックで全部候補が出るのを防ぐ）
+updateIngredientDatalist([]);
+
+let cachedDocs = []; // [{id, data}...]
+
+function rebuildIngredientSuggestions() {
+  const input = document.getElementById("temp-ingredient");
+  if (!input) return;
+
+  const q = input.value.trim().toLowerCase();
+
+  // 入力なしなら候補ゼロ（クリックだけで出ない）
+  if (q.length === 0) {
+    updateIngredientDatalist([]);
+    return;
+  }
+
+  // 固定候補：入力にヒットしたものだけ
+  const presetFiltered = INGREDIENT_PRESETS
+    .filter(n => n.toLowerCase().includes(q));
+
+  // 過去レシピの材料名：入力にヒットしたものだけ（多すぎ防止）
+  const namesFromRecipes = cachedDocs.flatMap(x =>
+    (x.data.ingredients || []).map(i => i.name)
+  );
+
+  // 1文字のときは出過ぎやすいので少なめ、2文字以上は少し増やす
+  const limit = (q.length === 1) ? 12 : 30;
+
+  const historyFiltered = namesFromRecipes
+    .map(s => (s || "").toString().trim())
+    .filter(Boolean)
+    .filter(n => n.toLowerCase().includes(q))
+    .slice(0, limit);
+
+  // presetも含めて合計が多すぎる場合もあるので、最後に上限
+  const combined = [...presetFiltered, ...historyFiltered].slice(0, limit);
+
+  updateIngredientDatalist(combined);
+}
+
+const ingredientInputEl = document.getElementById("temp-ingredient");
+if (ingredientInputEl) {
+  ingredientInputEl.addEventListener("input", rebuildIngredientSuggestions);
+  ingredientInputEl.addEventListener("focus", rebuildIngredientSuggestions);
+}
 
 /* =============================
    一時リスト表示
@@ -202,6 +246,9 @@ document.addEventListener("click", (e) => {
   unitSelect.value = defaultUnits[name] ?? "";
   amountInput.value = ""; // 量は空でOK
 
+  // 候補もその材料名で絞る（気持ちよく）
+  rebuildIngredientSuggestions();
+
   ingredientInput.focus();
 });
 
@@ -226,6 +273,9 @@ document.getElementById("add-ingredient-btn").addEventListener("click", () => {
 
   document.getElementById("temp-ingredient").value = "";
   document.getElementById("temp-amount-num").value = "";
+
+  // ✅ 追加後は候補を空に戻す（クリックで一覧が出ない）
+  updateIngredientDatalist([]);
 });
 
 /* =============================
@@ -295,14 +345,15 @@ recipeForm.addEventListener("submit", async (e) => {
   tempSteps = [];
   document.getElementById("ingredient-list").innerHTML = "";
   document.getElementById("step-list").innerHTML = "";
+
+  // 投稿後も候補を空に
+  updateIngredientDatalist([]);
 });
 
 /* =============================
    表示：検索対応のために
    snapshotの内容を保持して再描画する
 ============================= */
-let cachedDocs = []; // [{id, data}...]
-
 function buildSearchText(data) {
   const title = normalizeText(data.title);
   const author = normalizeText(data.author);
@@ -351,15 +402,11 @@ function renderAll() {
 
         // 量が数値でない/空の場合は、そのまま表示（単位があれば単位だけもOK）
         if (!canCalc) {
-          // 単位だけ（少々/適量など）
           if (amountRaw === "" && unit) return `<li>${name} ${unit}</li>`;
-          // 量だけ
           if (amountRaw && !unit) return `<li>${name} ${amountRaw}</li>`;
-          // 量＋単位
           return `<li>${name} ${amountRaw}${unit}</li>`;
         }
 
-        // ここから計算対象
         const newAmount = amountNum * servings;
 
         let amountText = "";
@@ -375,7 +422,6 @@ function renderAll() {
         } else if (unit === "大さじ") {
           amountText = `大さじ${toFraction(newAmount)}`;
         } else {
-          // 単位なしOK
           amountText = unit ? `${toFraction(newAmount)}${unit}` : `${toFraction(newAmount)}`;
         }
 
@@ -466,6 +512,9 @@ function renderAll() {
 
       submitBtn.textContent = "更新する";
       window.scrollTo({ top: 0, behavior: "smooth" });
+
+      // 編集開始時は候補を空に（クリックで大量表示防止）
+      updateIngredientDatalist([]);
     });
 
     // 削除
@@ -484,14 +533,10 @@ function renderAll() {
 ============================= */
 onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snapshot) => {
   cachedDocs = snapshot.docs.map(d => ({ id: d.id, data: d.data() }));
-
-  // ✅ 過去レシピの材料名を候補に追加
-  const namesFromRecipes = cachedDocs.flatMap(x =>
-    (x.data.ingredients || []).map(i => i.name)
-  );
-  updateIngredientDatalist(namesFromRecipes);
-
   renderAll();
+
+  // データ更新時、入力中なら候補更新
+  rebuildIngredientSuggestions();
 });
 
 /* =============================
@@ -502,25 +547,23 @@ if (searchBox) {
     renderAll();
   });
 }
+
+/* =============================
+   ＋投稿ボタン（フォーム開閉）
+============================= */
 const floatingBtn = document.getElementById("floating-post-btn");
 const uploadSection = document.getElementById("upload-section");
 
-floatingBtn.addEventListener("click", () => {
-
-  if(uploadSection.style.display === "none"){
-
-    uploadSection.style.display = "block";
-
-    window.scrollTo({
-      top: uploadSection.offsetTop - 20,
-      behavior: "smooth"
-    });
-
-  }else{
-
-    uploadSection.style.display = "none";
-
-  }
-
-});
-
+if (floatingBtn && uploadSection) {
+  floatingBtn.addEventListener("click", () => {
+    if (uploadSection.style.display === "none") {
+      uploadSection.style.display = "block";
+      window.scrollTo({
+        top: uploadSection.offsetTop - 20,
+        behavior: "smooth"
+      });
+    } else {
+      uploadSection.style.display = "none";
+    }
+  });
+}
