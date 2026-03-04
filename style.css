@@ -107,3 +107,10 @@ button { border: none; padding: 12px; border-radius: 10px; cursor: pointer; font
   border: 1px solid #ddd;
   font-size: 16px;
 }
+#quick-ingredients{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:8px;
+  margin-bottom:12px;
+}
