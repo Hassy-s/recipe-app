@@ -14,11 +14,10 @@ import {
 /* =============================
    合言葉（ルールと一致させる）
 ============================= */
-const SECRET_WORD = "8484"; // ← Firestoreルールの合言葉と同じにする
+const SECRET_WORD = "8484";
 
 /* =============================
    合言葉チェック（無限ループ）
-   正しいまで閲覧できない運用
 ============================= */
 function checkSecretAtStart() {
   const saved = localStorage.getItem("secretKey");
@@ -62,6 +61,11 @@ const container = document.getElementById("container");
 const submitBtn = document.querySelector(".submit-btn");
 const searchBox = document.getElementById("search-box");
 
+/* 追加：単位まわり */
+const unitSelectEl = document.getElementById("temp-unit");
+const customUnitRowEl = document.getElementById("custom-unit-row");
+const customUnitInputEl = document.getElementById("temp-unit-custom");
+
 let tempIngredients = [];
 let tempSteps = [];
 let editingId = null;
@@ -98,7 +102,7 @@ function normalizeText(s) {
 /* =============================
    オートコンプリート（datalist）
    - クリックだけで全部出ない
-   - 1文字から絞り込み候補を出す
+   - 1文字から絞り込み
 ============================= */
 const INGREDIENT_PRESETS = [
   "砂糖", "塩", "酢", "醤油", "味噌", "みりん", "酒", "水",
@@ -123,7 +127,7 @@ function updateIngredientDatalist(names = []) {
   dl.innerHTML = sorted.map(n => `<option value="${n}"></option>`).join("");
 }
 
-// ✅ 初期は空（クリックで全部候補が出るのを防ぐ）
+// 初期は空
 updateIngredientDatalist([]);
 
 let cachedDocs = []; // [{id, data}...]
@@ -134,22 +138,16 @@ function rebuildIngredientSuggestions() {
 
   const q = input.value.trim().toLowerCase();
 
-  // 入力なしなら候補ゼロ（クリックだけで出ない）
   if (q.length === 0) {
     updateIngredientDatalist([]);
     return;
   }
 
-  // 固定候補：入力にヒットしたものだけ
-  const presetFiltered = INGREDIENT_PRESETS
-    .filter(n => n.toLowerCase().includes(q));
-
-  // 過去レシピの材料名：入力にヒットしたものだけ（多すぎ防止）
+  const presetFiltered = INGREDIENT_PRESETS.filter(n => n.toLowerCase().includes(q));
   const namesFromRecipes = cachedDocs.flatMap(x =>
     (x.data.ingredients || []).map(i => i.name)
   );
 
-  // 1文字のときは出過ぎやすいので少なめ、2文字以上は少し増やす
   const limit = (q.length === 1) ? 12 : 30;
 
   const historyFiltered = namesFromRecipes
@@ -158,9 +156,7 @@ function rebuildIngredientSuggestions() {
     .filter(n => n.toLowerCase().includes(q))
     .slice(0, limit);
 
-  // presetも含めて合計が多すぎる場合もあるので、最後に上限
   const combined = [...presetFiltered, ...historyFiltered].slice(0, limit);
-
   updateIngredientDatalist(combined);
 }
 
@@ -168,6 +164,66 @@ const ingredientInputEl = document.getElementById("temp-ingredient");
 if (ingredientInputEl) {
   ingredientInputEl.addEventListener("input", rebuildIngredientSuggestions);
   ingredientInputEl.addEventListener("focus", rebuildIngredientSuggestions);
+}
+
+/* =============================
+   単位：その他入力の表示切替
+============================= */
+function setCustomUnitVisible(visible) {
+  if (!customUnitRowEl || !customUnitInputEl) return;
+  customUnitRowEl.style.display = visible ? "block" : "none";
+  if (!visible) customUnitInputEl.value = "";
+}
+
+if (unitSelectEl) {
+  unitSelectEl.addEventListener("change", () => {
+    const isOther = unitSelectEl.value === "__other__";
+    setCustomUnitVisible(isOther);
+    if (isOther && customUnitInputEl) customUnitInputEl.focus();
+  });
+}
+
+/* =============================
+   神小技：最近使った単位をselectに一時追加
+   （今あるレシピから集計 → レシピ削除で自然に消える）
+============================= */
+function updateRecentUnitOptions() {
+  if (!unitSelectEl) return;
+
+  // 既存<option>のうち、固定の単位一覧（__other__ と空は除外）
+  const fixedUnits = new Set(
+    Array.from(unitSelectEl.options)
+      .map(o => o.value)
+      .filter(v => v && v !== "__other__" && !String(v).startsWith("__recent__:"))
+  );
+
+  // まず前回の「最近」候補を消す
+  Array.from(unitSelectEl.options).forEach(opt => {
+    if (String(opt.value).startsWith("__recent__:")) opt.remove();
+  });
+
+  // レシピから unit を集計（固定以外 = カスタム単位扱い）
+  const unitsFromRecipes = cachedDocs.flatMap(x =>
+    (x.data.ingredients || []).map(i => (i.unit || "").toString().trim())
+  ).filter(Boolean);
+
+  const customUnits = Array.from(new Set(unitsFromRecipes))
+    .filter(u => u !== "__other__")
+    .filter(u => !fixedUnits.has(u))
+    .slice(0, 10);
+
+  if (customUnits.length === 0) return;
+
+  // 「その他…」の直前に差し込む
+  const otherIndex = Array.from(unitSelectEl.options).findIndex(o => o.value === "__other__");
+  const insertIndex = otherIndex >= 0 ? otherIndex : unitSelectEl.options.length;
+
+  customUnits.forEach(u => {
+    const opt = document.createElement("option");
+    opt.value = `__recent__:${u}`; // 内部用
+    opt.textContent = `★ ${u}`;     // 表示は分かりやすく
+    unitSelectEl.add(opt, insertIndex);
+  });
 }
 
 /* =============================
@@ -215,8 +271,7 @@ document.addEventListener("click", (e) => {
 });
 
 /* =============================
-   よく使う材料ボタン
-   材料名 + 単位を自動セット
+   よく使う材料ボタン：材料名+単位
 ============================= */
 document.addEventListener("click", (e) => {
   const btn = e.target.closest(".quick-ing");
@@ -225,10 +280,9 @@ document.addEventListener("click", (e) => {
   const name = btn.dataset.name || "";
 
   const ingredientInput = document.getElementById("temp-ingredient");
-  const unitSelect = document.getElementById("temp-unit");
   const amountInput = document.getElementById("temp-amount-num");
 
-  if (!ingredientInput || !unitSelect || !amountInput) return;
+  if (!ingredientInput || !unitSelectEl || !amountInput) return;
 
   ingredientInput.value = name;
 
@@ -243,29 +297,46 @@ document.addEventListener("click", (e) => {
     "味噌": "g"
   };
 
-  unitSelect.value = defaultUnits[name] ?? "";
-  amountInput.value = ""; // 量は空でOK
+  unitSelectEl.value = defaultUnits[name] ?? "";
+  amountInput.value = "";
 
-  // 候補もその材料名で絞る（気持ちよく）
+  // その他入力は閉じる
+  setCustomUnitVisible(false);
+
   rebuildIngredientSuggestions();
-
   ingredientInput.focus();
 });
 
 /* =============================
-   材料追加
-   ✅ 単位なしOK / 少々・適量など（量なしでもOK）
+   材料追加（その他チェック付き）
 ============================= */
 document.getElementById("add-ingredient-btn").addEventListener("click", () => {
   const name = document.getElementById("temp-ingredient").value.trim();
   const amountRaw = document.getElementById("temp-amount-num").value; // 空もあり
-  const unit = document.getElementById("temp-unit").value; // ""もあり
+  const unitRaw = unitSelectEl ? unitSelectEl.value : "";
 
   if (!name) return;
 
+  let unit = unitRaw;
+
+  // ★ 最近単位（内部値）を実際の文字列へ戻す
+  if (unit && unit.startsWith("__recent__:")) {
+    unit = unit.replace("__recent__:", "");
+  }
+
+  // ★ その他の場合は入力必須
+  if (unitRaw === "__other__") {
+    const custom = (customUnitInputEl?.value || "").trim();
+    if (!custom) {
+      alert("その他を選んだ場合は手動で単位を入力してください");
+      return;
+    }
+    unit = custom;
+  }
+
   tempIngredients.push({
     name,
-    amount: amountRaw, // 文字列のまま持つ
+    amount: amountRaw,
     unit
   });
 
@@ -274,7 +345,10 @@ document.getElementById("add-ingredient-btn").addEventListener("click", () => {
   document.getElementById("temp-ingredient").value = "";
   document.getElementById("temp-amount-num").value = "";
 
-  // ✅ 追加後は候補を空に戻す（クリックで一覧が出ない）
+  // 単位は（なし）に戻す + その他入力も閉じる
+  if (unitSelectEl) unitSelectEl.value = "";
+  setCustomUnitVisible(false);
+
   updateIngredientDatalist([]);
 });
 
@@ -346,13 +420,12 @@ recipeForm.addEventListener("submit", async (e) => {
   document.getElementById("ingredient-list").innerHTML = "";
   document.getElementById("step-list").innerHTML = "";
 
-  // 投稿後も候補を空に
   updateIngredientDatalist([]);
+  setCustomUnitVisible(false);
 });
 
 /* =============================
-   表示：検索対応のために
-   snapshotの内容を保持して再描画する
+   表示：検索対応
 ============================= */
 function buildSearchText(data) {
   const title = normalizeText(data.title);
@@ -371,7 +444,6 @@ function matchesSearch(data, rawQuery) {
   const q = normalizeText(rawQuery);
   if (!q) return true;
 
-  // スペース区切りAND検索（例：「うどん だし」）
   const terms = q.split(/\s+/).filter(Boolean);
   const hay = buildSearchText(data);
 
@@ -396,11 +468,9 @@ function renderAll() {
         const unit = (i.unit || "").trim();
         const amountRaw = (i.amount ?? "").toString().trim();
 
-        // 量が数値として読めるときだけ計算する
         const amountNum = amountRaw === "" ? NaN : parseFloat(amountRaw);
         const canCalc = !Number.isNaN(amountNum);
 
-        // 量が数値でない/空の場合は、そのまま表示（単位があれば単位だけもOK）
         if (!canCalc) {
           if (amountRaw === "" && unit) return `<li>${name} ${unit}</li>`;
           if (amountRaw && !unit) return `<li>${name} ${amountRaw}</li>`;
@@ -464,7 +534,6 @@ function renderAll() {
       </div>
     `;
 
-    // カード開閉（ボタン類除外）
     card.addEventListener("click", (e) => {
       if (
         e.target.classList.contains("delete-btn") ||
@@ -475,7 +544,6 @@ function renderAll() {
       card.classList.toggle("open");
     });
 
-    // 人前
     const countSpan = card.querySelector(".serving-count");
 
     card.querySelector(".plus-btn").addEventListener("click", (e) => {
@@ -494,7 +562,6 @@ function renderAll() {
       }
     });
 
-    // 編集
     card.querySelector(".edit-btn").addEventListener("click", (e) => {
       e.stopPropagation();
 
@@ -513,11 +580,10 @@ function renderAll() {
       submitBtn.textContent = "更新する";
       window.scrollTo({ top: 0, behavior: "smooth" });
 
-      // 編集開始時は候補を空に（クリックで大量表示防止）
       updateIngredientDatalist([]);
+      setCustomUnitVisible(false);
     });
 
-    // 削除
     card.querySelector(".delete-btn").addEventListener("click", async (e) => {
       e.stopPropagation();
       if (!confirm("削除しますか？")) return;
@@ -533,9 +599,11 @@ function renderAll() {
 ============================= */
 onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snapshot) => {
   cachedDocs = snapshot.docs.map(d => ({ id: d.id, data: d.data() }));
-  renderAll();
 
-  // データ更新時、入力中なら候補更新
+  // 最近単位を更新（レシピ削除で自然に消える）
+  updateRecentUnitOptions();
+
+  renderAll();
   rebuildIngredientSuggestions();
 });
 
@@ -543,9 +611,7 @@ onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snap
    検索入力 → 再描画
 ============================= */
 if (searchBox) {
-  searchBox.addEventListener("input", () => {
-    renderAll();
-  });
+  searchBox.addEventListener("input", () => renderAll());
 }
 
 /* =============================
@@ -558,10 +624,7 @@ if (floatingBtn && uploadSection) {
   floatingBtn.addEventListener("click", () => {
     if (uploadSection.style.display === "none") {
       uploadSection.style.display = "block";
-      window.scrollTo({
-        top: uploadSection.offsetTop - 20,
-        behavior: "smooth"
-      });
+      window.scrollTo({ top: uploadSection.offsetTop - 20, behavior: "smooth" });
     } else {
       uploadSection.style.display = "none";
     }
