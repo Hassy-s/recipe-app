@@ -502,3 +502,25 @@ if (searchBox) {
     renderAll();
   });
 }
+const floatingBtn = document.getElementById("floating-post-btn");
+const uploadSection = document.getElementById("upload-section");
+
+floatingBtn.addEventListener("click", () => {
+
+  if(uploadSection.style.display === "none"){
+
+    uploadSection.style.display = "block";
+
+    window.scrollTo({
+      top: uploadSection.offsetTop - 20,
+      behavior: "smooth"
+    });
+
+  }else{
+
+    uploadSection.style.display = "none";
+
+  }
+
+});
+
