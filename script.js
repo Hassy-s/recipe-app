@@ -14,7 +14,7 @@ import {
 /* =============================
    合言葉（ルールと一致させる）
 ============================= */
-const SECRET_WORD = "8484"; // ← Firestoreルールの合言葉と同じ
+const SECRET_WORD = "8484"; // ← Firestoreルールの合言葉と同じにする
 
 /* =============================
    合言葉チェック（無限ループ）
@@ -96,6 +96,37 @@ function normalizeText(s) {
 }
 
 /* =============================
+   オートコンプリート（datalist）
+   - 固定候補 + 過去レシピの材料名を候補にする
+============================= */
+const INGREDIENT_PRESETS = [
+  "砂糖", "塩", "酢", "醤油", "味噌", "みりん", "酒", "水",
+  "だし", "顆粒だし", "ほんだし", "白だし",
+  "にんにく", "しょうが", "長ねぎ", "玉ねぎ",
+  "ごま油", "サラダ油", "オリーブオイル",
+  "こしょう", "ブラックペッパー", "一味", "七味",
+  "ごま", "すりごま", "片栗粉", "小麦粉"
+];
+
+function updateIngredientDatalist(extraNames = []) {
+  const dl = document.getElementById("ingredient-suggestions");
+  if (!dl) return;
+
+  const set = new Set();
+  INGREDIENT_PRESETS.forEach(n => set.add(n));
+  extraNames.forEach(n => {
+    const s = (n || "").toString().trim();
+    if (s) set.add(s);
+  });
+
+  const sorted = Array.from(set).sort((a, b) => a.localeCompare(b, "ja"));
+  dl.innerHTML = sorted.map(n => `<option value="${n}"></option>`).join("");
+}
+
+// 初期表示（固定候補だけでも出るように）
+updateIngredientDatalist();
+
+/* =============================
    一時リスト表示
 ============================= */
 function updateTempList(listId, dataArray, type) {
@@ -138,21 +169,42 @@ document.addEventListener("click", (e) => {
     updateTempList("step-list", tempSteps, "steps");
   }
 });
+
 /* =============================
    よく使う材料ボタン
-   押したら材料名欄に入れる
+   材料名 + 単位を自動セット
 ============================= */
 document.addEventListener("click", (e) => {
   const btn = e.target.closest(".quick-ing");
   if (!btn) return;
 
   const name = btn.dataset.name || "";
-  const input = document.getElementById("temp-ingredient");
-  if (!input) return;
 
-  input.value = name;
-  input.focus();
+  const ingredientInput = document.getElementById("temp-ingredient");
+  const unitSelect = document.getElementById("temp-unit");
+  const amountInput = document.getElementById("temp-amount-num");
+
+  if (!ingredientInput || !unitSelect || !amountInput) return;
+
+  ingredientInput.value = name;
+
+  const defaultUnits = {
+    "水": "ml",
+    "砂糖": "g",
+    "塩": "g",
+    "醤油": "大さじ",
+    "みりん": "大さじ",
+    "酒": "大さじ",
+    "酢": "大さじ",
+    "味噌": "g"
+  };
+
+  unitSelect.value = defaultUnits[name] ?? "";
+  amountInput.value = ""; // 量は空でOK
+
+  ingredientInput.focus();
 });
+
 /* =============================
    材料追加
    ✅ 単位なしOK / 少々・適量など（量なしでもOK）
@@ -164,7 +216,6 @@ document.getElementById("add-ingredient-btn").addEventListener("click", () => {
 
   if (!name) return;
 
-  // 量は空でもOK（少々・適量・単位なしの時など）
   tempIngredients.push({
     name,
     amount: amountRaw, // 文字列のまま持つ
@@ -294,7 +345,6 @@ function renderAll() {
         const unit = (i.unit || "").trim();
         const amountRaw = (i.amount ?? "").toString().trim();
 
-        // ✅ 量が空でもOK（少々/適量/単位なし等）
         // 量が数値として読めるときだけ計算する
         const amountNum = amountRaw === "" ? NaN : parseFloat(amountRaw);
         const canCalc = !Number.isNaN(amountNum);
@@ -321,7 +371,7 @@ function renderAll() {
           const tspText = teaspoon > 0 ? `小さじ${toFraction(teaspoon)}` : "";
 
           amountText = [tbspText, tspText].filter(Boolean).join(" ");
-          if (!amountText) amountText = `小さじ0`; // 念のため
+          if (!amountText) amountText = `小さじ0`;
         } else if (unit === "大さじ") {
           amountText = `大さじ${toFraction(newAmount)}`;
         } else {
@@ -434,6 +484,13 @@ function renderAll() {
 ============================= */
 onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snapshot) => {
   cachedDocs = snapshot.docs.map(d => ({ id: d.id, data: d.data() }));
+
+  // ✅ 過去レシピの材料名を候補に追加
+  const namesFromRecipes = cachedDocs.flatMap(x =>
+    (x.data.ingredients || []).map(i => i.name)
+  );
+  updateIngredientDatalist(namesFromRecipes);
+
   renderAll();
 });
 
@@ -445,5 +502,3 @@ if (searchBox) {
     renderAll();
   });
 }
-
-
