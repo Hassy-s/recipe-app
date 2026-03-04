@@ -108,12 +108,21 @@ button { border: none; padding: 12px; border-radius: 10px; cursor: pointer; font
   font-size: 16px;
 }
 #quick-ingredients{
-  background: orange;
+  background: transparent;
   display:flex;
   flex-wrap:wrap;
   gap:8px;
   margin-top:8px;
   margin-bottom:12px;
+}
+
+#quick-ingredients button{
+  background: #fff;
+  border: 2px solid #ff9f43;
+  color: #ff6b6b;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.9rem;
 }
 #floating-post-btn{
   position: fixed;
@@ -142,4 +151,5 @@ button { border: none; padding: 12px; border-radius: 10px; cursor: pointer; font
   cursor: pointer;
   z-index: 9999;
 }
+
 
