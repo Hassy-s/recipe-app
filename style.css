@@ -1,99 +1,193 @@
-/* --- style.css の完全版 --- */
-body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #fff9f0; color: #444; padding: 20px; margin: 0; }
-header { text-align: center; padding: 10px 0; color: #ff6b6b; }
-#upload-section { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 600px; margin: 0 auto 20px; }
-input, select { width: 100%; margin-bottom: 10px; padding: 12px; border: 2px solid #eee; border-radius: 10px; box-sizing: border-box; }
-.input-group { margin-bottom: 10px; }
-.ingredient-input-box { display: flex; gap: 5px; }
-.ingredient-input-box input, .ingredient-input-box select { margin-bottom: 0; }
-button { border: none; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: bold; }
-#add-ingredient-btn, #add-step-btn { background-color: #ff9f43; color: white; min-width: 50px; }
-.submit-btn { background: linear-gradient(135deg, #ff9f43, #ff6b6b); color: white; width: 100%; }
-.temp-list { padding-left: 20px; font-size: 0.9rem; }
-.remove-temp-btn { background: #eee; padding: 2px 5px; font-size: 0.7rem; margin-left: 5px; }
+/* --- style.css の完全版（元の見た目に復元） --- */
+
+body {
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  background-color: #fff9f0;
+  color: #444;
+  padding: 20px;
+  margin: 0;
+}
+
+header {
+  text-align: center;
+  padding: 10px 0;
+  color: #ff6b6b;
+}
+
+#upload-section {
+  background: white;
+  padding: 20px;
+  border-radius: 15px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  max-width: 600px;
+  margin: 0 auto 20px;
+}
+
+input, select {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 12px;
+  border: 2px solid #eee;
+  border-radius: 10px;
+  box-sizing: border-box;
+}
+
+.input-group {
+  margin-bottom: 10px;
+}
+
+.ingredient-input-box {
+  display: flex;
+  gap: 5px;
+}
+
+.ingredient-input-box input,
+.ingredient-input-box select {
+  margin-bottom: 0;
+}
+
+button {
+  border: none;
+  padding: 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+#add-ingredient-btn,
+#add-step-btn {
+  background-color: #ff9f43;
+  color: white;
+  min-width: 50px;
+}
+
+.submit-btn {
+  background: linear-gradient(135deg, #ff9f43, #ff6b6b);
+  color: white;
+  width: 100%;
+}
+
+.temp-list {
+  padding-left: 20px;
+  font-size: 0.9rem;
+}
+
+.remove-temp-btn {
+  background: #eee;
+  padding: 2px 5px;
+  font-size: 0.7rem;
+  margin-left: 5px;
+}
 
 /* カードエリア */
-#container { display: grid; gap: 20px; max-width: 1200px; margin: 0 auto; }
-@media (min-width: 601px) { #container { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); } }
 
-.recipe-card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 5px solid #ff9f43; position: relative; cursor: pointer; }
-.card-title { margin: 0 0 10px 0; color: #333; }
-.recipe-details { display: none; margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; }
-.recipe-card.open .recipe-details { display: block; }
-.delete-btn { background-color: #ff6b6b; color: white; position: absolute; top: 10px; right: 10px; font-size: 0.7rem; padding: 5px; }
+#container {
+  display: grid;
+  gap: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
 
-/* --- 材料リストのスタイル(配置を改善) --- */
+@media (min-width: 601px) {
+  #container {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+}
+
+.recipe-card {
+  background: white;
+  padding: 20px;
+  border-radius: 15px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+  border-top: 5px solid #ff9f43;
+  position: relative;
+  cursor: pointer;
+}
+
+.card-title {
+  margin: 0 0 10px 0;
+  color: #333;
+}
+
+.recipe-details {
+  display: none;
+  margin-top: 15px;
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+}
+
+.recipe-card.open .recipe-details {
+  display: block;
+}
+
+.delete-btn {
+  background-color: #ff6b6b;
+  color: white;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 0.7rem;
+  padding: 5px;
+}
+
+/* 材料リスト */
+
 .ingredient-list-style {
-    list-style: none; /* ドットを消す */
-    padding: 0;
-    margin: 10px 0;
+  list-style: none;
+  padding: 0;
+  margin: 10px 0;
 }
 
 .ingredient-item {
-    display: flex;
-    justify-content: space-between; /* 名前と量を左右に分ける */
-    align-items: center;
-    padding: 5px 0;
-    border-bottom: 1px dotted #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px dotted #eee;
 }
 
 .ing-name {
-    font-weight: bold;
-    text-align: left;
+  font-weight: bold;
+  text-align: left;
 }
 
 .ing-amount {
-    text-align: right;
-    color: #555;
-    font-weight: bold;
-    display: flex;
-    gap: 4px; /* 単位と量の間のスペース */
+  text-align: right;
+  color: #555;
+  font-weight: bold;
+  display: flex;
+  gap: 4px;
 }
+
 .serving-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .card-actions {
-    display: none;
-    gap: 8px;
+  display: none;
+  gap: 8px;
 }
 
 .recipe-card.open .card-actions {
-    display: flex;
+  display: flex;
 }
 
 .card-actions button {
-    font-size: 0.85rem;
-    padding: 4px 8px;
+  font-size: 0.85rem;
+  padding: 4px 8px;
 }
-/* 以前の絶対配置を無効化 */
+
+/* 編集削除位置修正 */
+
 .edit-btn,
 .delete-btn {
-    position: static;
+  position: static;
 }
 
-/* 横並びレイアウト */
-.serving-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
+/* 検索 */
 
-.card-actions {
-    display: none;
-    gap: 8px;
-}
-
-.recipe-card.open .card-actions {
-    display: flex;
-}
-
-.card-actions button {
-    font-size: 0.85rem;
-    padding: 4px 8px;
-}
 #search-section {
   margin: 12px auto;
   max-width: 900px;
@@ -107,35 +201,30 @@ button { border: none; padding: 12px; border-radius: 10px; cursor: pointer; font
   border: 1px solid #ddd;
   font-size: 16px;
 }
-#quick-ingredients{
-  background: transparent;
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  margin-top:8px;
-  margin-bottom:12px;
+
+/* よく使う材料ボタン */
+
+#quick-ingredients {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  margin-bottom: 12px;
 }
 
-#quick-ingredients button{
-  background: #fff;
-  border: 2px solid #ff9f43;
-  color: #ff6b6b;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 0.9rem;
-}
-#floating-post-btn{
+/* ＋投稿ボタン（中央ズレ修正済み） */
+
+#floating-post-btn {
   position: fixed;
   bottom: 20px;
   right: 20px;
 
   width: 60px;
   height: 60px;
-  border-radius: 50%;
 
+  border-radius: 50%;
   background: orange;
   color: white;
-
   border: none;
 
   display: flex;
@@ -151,5 +240,3 @@ button { border: none; padding: 12px; border-radius: 10px; cursor: pointer; font
   cursor: pointer;
   z-index: 9999;
 }
-
-
