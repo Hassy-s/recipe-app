@@ -108,6 +108,7 @@ button { border: none; padding: 12px; border-radius: 10px; cursor: pointer; font
   font-size: 16px;
 }
 #quick-ingredients{
+  background: orange;
   display:flex;
   flex-wrap:wrap;
   gap:8px;
@@ -139,3 +140,4 @@ button { border: none; padding: 12px; border-radius: 10px; cursor: pointer; font
   cursor: pointer;
   z-index: 9999;
 }
+
