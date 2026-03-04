@@ -56,15 +56,29 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+/* =============================
+   DOM
+============================= */
 const recipeForm = document.getElementById("recipe-form");
 const container = document.getElementById("container");
 const submitBtn = document.querySelector(".submit-btn");
 const searchBox = document.getElementById("search-box");
 
-/* 追加：単位まわり */
+// 投稿フォーム開閉
+const floatingBtn = document.getElementById("floating-post-btn");
+const uploadSection = document.getElementById("upload-section");
+
+// 材料入力
+const ingredientInputEl = document.getElementById("temp-ingredient");
+const amountInputEl = document.getElementById("temp-amount-num");
 const unitSelectEl = document.getElementById("temp-unit");
 const customUnitRowEl = document.getElementById("custom-unit-row");
 const customUnitInputEl = document.getElementById("temp-unit-custom");
+const addIngredientBtn = document.getElementById("add-ingredient-btn");
+
+// 手順入力
+const stepInputEl = document.getElementById("temp-step");
+const addStepBtn = document.getElementById("add-step-btn");
 
 let tempIngredients = [];
 let tempSteps = [];
@@ -76,7 +90,6 @@ let editingId = null;
 function toFraction(num) {
   const whole = Math.floor(num);
   const decimal = Number((num - whole).toFixed(2));
-
   const fractionMap = { 0.25: "¼", 0.5: "½", 0.75: "¾" };
 
   if (decimal === 0) return whole.toString();
@@ -100,7 +113,24 @@ function normalizeText(s) {
 }
 
 /* =============================
-   オートコンプリート（datalist）
+   単位：その他入力の表示切替
+============================= */
+function setCustomUnitVisible(visible) {
+  if (!customUnitRowEl || !customUnitInputEl) return;
+  customUnitRowEl.style.display = visible ? "block" : "none";
+  if (!visible) customUnitInputEl.value = "";
+}
+
+if (unitSelectEl) {
+  unitSelectEl.addEventListener("change", () => {
+    const isOther = unitSelectEl.value === "__other__";
+    setCustomUnitVisible(isOther);
+    if (isOther && customUnitInputEl) customUnitInputEl.focus();
+  });
+}
+
+/* =============================
+   オートコンプリート（材料名）
    - クリックだけで全部出ない
    - 1文字から絞り込み
 ============================= */
@@ -127,23 +157,22 @@ function updateIngredientDatalist(names = []) {
   dl.innerHTML = sorted.map(n => `<option value="${n}"></option>`).join("");
 }
 
-// 初期は空
+// 初期は空（クリックだけで一覧が出ない）
 updateIngredientDatalist([]);
 
 let cachedDocs = []; // [{id, data}...]
 
 function rebuildIngredientSuggestions() {
-  const input = document.getElementById("temp-ingredient");
-  if (!input) return;
+  if (!ingredientInputEl) return;
 
-  const q = input.value.trim().toLowerCase();
-
+  const q = ingredientInputEl.value.trim().toLowerCase();
   if (q.length === 0) {
     updateIngredientDatalist([]);
     return;
   }
 
   const presetFiltered = INGREDIENT_PRESETS.filter(n => n.toLowerCase().includes(q));
+
   const namesFromRecipes = cachedDocs.flatMap(x =>
     (x.data.ingredients || []).map(i => i.name)
   );
@@ -160,49 +189,31 @@ function rebuildIngredientSuggestions() {
   updateIngredientDatalist(combined);
 }
 
-const ingredientInputEl = document.getElementById("temp-ingredient");
 if (ingredientInputEl) {
   ingredientInputEl.addEventListener("input", rebuildIngredientSuggestions);
   ingredientInputEl.addEventListener("focus", rebuildIngredientSuggestions);
 }
 
 /* =============================
-   単位：その他入力の表示切替
-============================= */
-function setCustomUnitVisible(visible) {
-  if (!customUnitRowEl || !customUnitInputEl) return;
-  customUnitRowEl.style.display = visible ? "block" : "none";
-  if (!visible) customUnitInputEl.value = "";
-}
-
-if (unitSelectEl) {
-  unitSelectEl.addEventListener("change", () => {
-    const isOther = unitSelectEl.value === "__other__";
-    setCustomUnitVisible(isOther);
-    if (isOther && customUnitInputEl) customUnitInputEl.focus();
-  });
-}
-
-/* =============================
-   神小技：最近使った単位をselectに一時追加
-   （今あるレシピから集計 → レシピ削除で自然に消える）
+   最近使った単位をselectに一時追加
+   （今あるレシピから集計 → 削除で自然に消える）
 ============================= */
 function updateRecentUnitOptions() {
   if (!unitSelectEl) return;
 
-  // 既存<option>のうち、固定の単位一覧（__other__ と空は除外）
+  // 固定単位の一覧（__recent__ は除く）
   const fixedUnits = new Set(
     Array.from(unitSelectEl.options)
       .map(o => o.value)
       .filter(v => v && v !== "__other__" && !String(v).startsWith("__recent__:"))
   );
 
-  // まず前回の「最近」候補を消す
+  // 前回の recent を削除
   Array.from(unitSelectEl.options).forEach(opt => {
     if (String(opt.value).startsWith("__recent__:")) opt.remove();
   });
 
-  // レシピから unit を集計（固定以外 = カスタム単位扱い）
+  // レシピから unit を集計
   const unitsFromRecipes = cachedDocs.flatMap(x =>
     (x.data.ingredients || []).map(i => (i.unit || "").toString().trim())
   ).filter(Boolean);
@@ -214,14 +225,13 @@ function updateRecentUnitOptions() {
 
   if (customUnits.length === 0) return;
 
-  // 「その他…」の直前に差し込む
   const otherIndex = Array.from(unitSelectEl.options).findIndex(o => o.value === "__other__");
   const insertIndex = otherIndex >= 0 ? otherIndex : unitSelectEl.options.length;
 
   customUnits.forEach(u => {
     const opt = document.createElement("option");
-    opt.value = `__recent__:${u}`; // 内部用
-    opt.textContent = `★ ${u}`;     // 表示は分かりやすく
+    opt.value = `__recent__:${u}`;
+    opt.textContent = `★ ${u}`;
     unitSelectEl.add(opt, insertIndex);
   });
 }
@@ -271,20 +281,16 @@ document.addEventListener("click", (e) => {
 });
 
 /* =============================
-   よく使う材料ボタン：材料名+単位
+   よく使う材料ボタン（材料名＋単位）
 ============================= */
 document.addEventListener("click", (e) => {
   const btn = e.target.closest(".quick-ing");
   if (!btn) return;
 
   const name = btn.dataset.name || "";
+  if (!ingredientInputEl || !unitSelectEl || !amountInputEl) return;
 
-  const ingredientInput = document.getElementById("temp-ingredient");
-  const amountInput = document.getElementById("temp-amount-num");
-
-  if (!ingredientInput || !unitSelectEl || !amountInput) return;
-
-  ingredientInput.value = name;
+  ingredientInputEl.value = name;
 
   const defaultUnits = {
     "水": "ml",
@@ -298,131 +304,140 @@ document.addEventListener("click", (e) => {
   };
 
   unitSelectEl.value = defaultUnits[name] ?? "";
-  amountInput.value = "";
+  amountInputEl.value = "";
 
-  // その他入力は閉じる
   setCustomUnitVisible(false);
 
   rebuildIngredientSuggestions();
-  ingredientInput.focus();
+  ingredientInputEl.focus();
 });
 
 /* =============================
    材料追加（その他チェック付き）
 ============================= */
-document.getElementById("add-ingredient-btn").addEventListener("click", () => {
-  const name = document.getElementById("temp-ingredient").value.trim();
-  const amountRaw = document.getElementById("temp-amount-num").value; // 空もあり
-  const unitRaw = unitSelectEl ? unitSelectEl.value : "";
+function resolveUnitForSave() {
+  if (!unitSelectEl) return "";
 
-  if (!name) return;
+  const raw = unitSelectEl.value;
 
-  let unit = unitRaw;
-
-  // ★ 最近単位（内部値）を実際の文字列へ戻す
-  if (unit && unit.startsWith("__recent__:")) {
-    unit = unit.replace("__recent__:", "");
+  // 最近単位（内部値）→ 実単位へ
+  if (raw && raw.startsWith("__recent__:")) {
+    return raw.replace("__recent__:", "");
   }
 
-  // ★ その他の場合は入力必須
-  if (unitRaw === "__other__") {
+  // その他 → 入力必須
+  if (raw === "__other__") {
     const custom = (customUnitInputEl?.value || "").trim();
     if (!custom) {
       alert("その他を選んだ場合は手動で単位を入力してください");
-      return;
+      return null; // 追加中断
     }
-    unit = custom;
+    return custom;
   }
 
-  tempIngredients.push({
-    name,
-    amount: amountRaw,
-    unit
+  // 通常（空もOK）
+  return raw;
+}
+
+if (addIngredientBtn) {
+  addIngredientBtn.addEventListener("click", () => {
+    const name = (ingredientInputEl?.value || "").trim();
+    const amountRaw = (amountInputEl?.value || ""); // 空OK
+
+    if (!name) return;
+
+    const unit = resolveUnitForSave();
+    if (unit === null) return; // アラート後中断
+
+    tempIngredients.push({ name, amount: amountRaw, unit });
+    updateTempList("ingredient-list", tempIngredients, "ingredients");
+
+    if (ingredientInputEl) ingredientInputEl.value = "";
+    if (amountInputEl) amountInputEl.value = "";
+
+    if (unitSelectEl) unitSelectEl.value = "";
+    setCustomUnitVisible(false);
+
+    updateIngredientDatalist([]);
   });
-
-  updateTempList("ingredient-list", tempIngredients, "ingredients");
-
-  document.getElementById("temp-ingredient").value = "";
-  document.getElementById("temp-amount-num").value = "";
-
-  // 単位は（なし）に戻す + その他入力も閉じる
-  if (unitSelectEl) unitSelectEl.value = "";
-  setCustomUnitVisible(false);
-
-  updateIngredientDatalist([]);
-});
+}
 
 /* =============================
    手順追加
 ============================= */
-document.getElementById("add-step-btn").addEventListener("click", () => {
-  const step = document.getElementById("temp-step").value.trim();
-  if (!step) return;
+if (addStepBtn) {
+  addStepBtn.addEventListener("click", () => {
+    const step = (stepInputEl?.value || "").trim();
+    if (!step) return;
 
-  tempSteps.push(step);
-  updateTempList("step-list", tempSteps, "steps");
-  document.getElementById("temp-step").value = "";
-});
+    tempSteps.push(step);
+    updateTempList("step-list", tempSteps, "steps");
+
+    if (stepInputEl) stepInputEl.value = "";
+  });
+}
 
 /* =============================
    投稿 / 更新（secret付与）
 ============================= */
-recipeForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
+if (recipeForm) {
+  recipeForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-  const title = document.getElementById("title").value.trim();
-  const author = document.getElementById("author").value.trim();
-  const point = document.getElementById("point").value.trim();
-  const secret = localStorage.getItem("secretKey");
+    const title = document.getElementById("title").value.trim();
+    const author = document.getElementById("author").value.trim();
+    const point = document.getElementById("point").value.trim();
+    const secret = localStorage.getItem("secretKey");
 
-  if (!title || !author) {
-    alert("投稿者名と料理名は必須です");
-    return;
-  }
+    if (!title || !author) {
+      alert("投稿者名と料理名は必須です");
+      return;
+    }
 
-  if (tempIngredients.length === 0 || tempSteps.length === 0) {
-    alert("材料と手順を追加してください");
-    return;
-  }
+    if (tempIngredients.length === 0 || tempSteps.length === 0) {
+      alert("材料と手順を追加してください");
+      return;
+    }
 
-  if (secret !== SECRET_WORD) {
-    alert("投稿用パスワードが未認証です。再読み込みしてください。");
-    return;
-  }
+    if (secret !== SECRET_WORD) {
+      alert("投稿用パスワードが未認証です。再読み込みしてください。");
+      return;
+    }
 
-  if (editingId) {
-    await updateDoc(doc(db, "recipes", editingId), {
-      title,
-      author,
-      ingredients: tempIngredients,
-      steps: tempSteps,
-      point,
-      secret
-    });
+    if (editingId) {
+      await updateDoc(doc(db, "recipes", editingId), {
+        title,
+        author,
+        ingredients: tempIngredients,
+        steps: tempSteps,
+        point,
+        secret
+      });
 
-    editingId = null;
-    submitBtn.textContent = "レシピを投稿する";
-  } else {
-    await addDoc(collection(db, "recipes"), {
-      title,
-      author,
-      ingredients: tempIngredients,
-      steps: tempSteps,
-      point,
-      createdAt: new Date(),
-      secret
-    });
-  }
+      editingId = null;
+      submitBtn.textContent = "レシピを投稿する";
+    } else {
+      await addDoc(collection(db, "recipes"), {
+        title,
+        author,
+        ingredients: tempIngredients,
+        steps: tempSteps,
+        point,
+        createdAt: new Date(),
+        secret
+      });
+    }
 
-  recipeForm.reset();
-  tempIngredients = [];
-  tempSteps = [];
-  document.getElementById("ingredient-list").innerHTML = "";
-  document.getElementById("step-list").innerHTML = "";
+    recipeForm.reset();
+    tempIngredients = [];
+    tempSteps = [];
+    document.getElementById("ingredient-list").innerHTML = "";
+    document.getElementById("step-list").innerHTML = "";
 
-  updateIngredientDatalist([]);
-  setCustomUnitVisible(false);
-});
+    updateIngredientDatalist([]);
+    setCustomUnitVisible(false);
+  });
+}
 
 /* =============================
    表示：検索対応
@@ -451,6 +466,7 @@ function matchesSearch(data, rawQuery) {
 }
 
 function renderAll() {
+  if (!container) return;
   container.innerHTML = "";
 
   const q = searchBox ? searchBox.value : "";
@@ -499,9 +515,7 @@ function renderAll() {
       }).join("");
     }
 
-    const stepsHTML = data.steps
-      ? data.steps.map((step) => `<li>${step}</li>`).join("")
-      : "";
+    const stepsHTML = (data.steps || []).map(step => `<li>${step}</li>`).join("");
 
     card.innerHTML = `
       <h3>${data.title || ""}</h3>
@@ -523,9 +537,7 @@ function renderAll() {
         </div>
 
         <p><strong>材料:</strong></p>
-        <ul class="ingredient-list">
-          ${renderIngredients(1)}
-        </ul>
+        <ul class="ingredient-list">${renderIngredients(1)}</ul>
 
         <p><strong>手順:</strong></p>
         <ol>${stepsHTML}</ol>
@@ -534,6 +546,7 @@ function renderAll() {
       </div>
     `;
 
+    // カード開閉（ボタン類除外）
     card.addEventListener("click", (e) => {
       if (
         e.target.classList.contains("delete-btn") ||
@@ -544,6 +557,7 @@ function renderAll() {
       card.classList.toggle("open");
     });
 
+    // 人前
     const countSpan = card.querySelector(".serving-count");
 
     card.querySelector(".plus-btn").addEventListener("click", (e) => {
@@ -562,6 +576,7 @@ function renderAll() {
       }
     });
 
+    // 編集
     card.querySelector(".edit-btn").addEventListener("click", (e) => {
       e.stopPropagation();
 
@@ -578,12 +593,17 @@ function renderAll() {
       updateTempList("step-list", tempSteps, "steps");
 
       submitBtn.textContent = "更新する";
-      window.scrollTo({ top: 0, behavior: "smooth" });
+
+      if (uploadSection) {
+        uploadSection.style.display = "block";
+        window.scrollTo({ top: uploadSection.offsetTop - 20, behavior: "smooth" });
+      }
 
       updateIngredientDatalist([]);
       setCustomUnitVisible(false);
     });
 
+    // 削除
     card.querySelector(".delete-btn").addEventListener("click", async (e) => {
       e.stopPropagation();
       if (!confirm("削除しますか？")) return;
@@ -600,9 +620,7 @@ function renderAll() {
 onSnapshot(query(collection(db, "recipes"), orderBy("createdAt", "desc")), (snapshot) => {
   cachedDocs = snapshot.docs.map(d => ({ id: d.id, data: d.data() }));
 
-  // 最近単位を更新（レシピ削除で自然に消える）
   updateRecentUnitOptions();
-
   renderAll();
   rebuildIngredientSuggestions();
 });
@@ -617,9 +635,6 @@ if (searchBox) {
 /* =============================
    ＋投稿ボタン（フォーム開閉）
 ============================= */
-const floatingBtn = document.getElementById("floating-post-btn");
-const uploadSection = document.getElementById("upload-section");
-
 if (floatingBtn && uploadSection) {
   floatingBtn.addEventListener("click", () => {
     if (uploadSection.style.display === "none") {
