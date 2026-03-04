@@ -123,9 +123,12 @@ button { border: none; padding: 12px; border-radius: 10px; cursor: pointer; font
   width: 60px;
   height: 60px;
   border-radius: 50%;
+
+  background: orange;
+  color: white;
+
   border: none;
 
-  /* ✅ これが重要：中身を完全に中央へ */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -133,7 +136,6 @@ button { border: none; padding: 12px; border-radius: 10px; cursor: pointer; font
   font-size: 30px;
   font-weight: bold;
 
-  /* ついでに安定させる */
   line-height: 1;
   padding: 0;
 
